@@ -1,0 +1,33 @@
+# 应用服务 WEB 访问端口
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: "jdbc:mysql://localhost:3306/blueprint_nexus_wms?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai"
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis-plus:
+  # mapper XML 文件扫描路径
+
+  mapper-locations: classpath:/mapper/**/*.xml
+
+  # 实体类包路径（可选）
+  # 作用：开启类型别名后，在 XML 中可以简写类名
+  # 例如：com.xxx.entity.User → 直接写 User
+  type-aliases-package: com.melioes.blueprintdigitalnexus.entity
+
+  configuration:
+    # 开启下划线转驼峰命名
+    # 数据库字段：role_key
+    # Java属性：roleKey
+    map-underscore-to-camel-case: true
+
+
+jwt:
+  secret-key: blueprint-nexus-secret-key-123456
+  ttl: 86400000
+  token-name: token
+
