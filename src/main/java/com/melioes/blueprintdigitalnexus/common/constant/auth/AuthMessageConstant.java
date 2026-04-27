@@ -6,11 +6,14 @@ package com.melioes.blueprintdigitalnexus.common.constant.auth;
 public class AuthMessageConstant {
 
     // 登录
+    public static final String ACCOUNT_DISABLED = "账号已被禁用";
+    public static final String LOGIN_SUCCESS = "登录成功";
+    /** ID不能为空 */
+    public static final String ID_EMPTY = "ID不能为空";
     public static final String USERNAME_EMPTY = "用户名不能为空";
     public static final String USER_NOT_FOUND = "用户不存在";
     public static final String PASSWORD_ERROR = "密码错误";
-    public static final String ACCOUNT_DISABLED = "账号已被禁用";
-    public static final String LOGIN_SUCCESS = "登录成功";
+    public static final String PASSWORD_EMPTY = "密码不能为空";
 
     // 注册
     public static final String USER_ALREADY_EXISTS = "用户已存在";

@@ -43,7 +43,7 @@ public class UserJwtInterceptor implements HandlerInterceptor {
             Long userId = Long.valueOf(claims.get("userId").toString());
 
             UserContext.set(userId);
-
+//            UserContext.setRoles(roles);
             log.info("[User] userId={}", userId);
 
             return true;

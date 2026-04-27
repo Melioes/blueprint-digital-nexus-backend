@@ -41,22 +41,30 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
         }
 
         try {
+            // =========================
+            // 1. 解析 JWT
+            // =========================
             Claims claims = JwtUtil.parseToken(jwtProperties.getSecretKey(), token);
 
-            // 1️ role校验
-            //一个用户多个角色
-            List<String> roles = (List<String>) claims.get("role");
-            if (roles == null || !roles.contains("ADMIN")) {
-                writeError(response, "无管理员权限");
-                return false;
-            }
-
-
+            // =========================
+            // 2. 获取用户信息
+            // =========================
             Long userId = Long.valueOf(claims.get("userId").toString());
 
-            UserContext.set(userId);
+            // 一个用户可能有多个角色
+            List<String> roles = (List<String>) claims.get("roleKeys");
 
-            log.info("[Admin] 认证成功 userId={}", userId);
+            // =========================
+            // 3. 保存到线程上下文（方便后续使用）
+            // =========================
+            UserContext.set(userId);
+            UserContext.setRoles(roles);
+
+            log.info("[Admin] 认证成功 userId={}, roles={}", userId, roles);
+
+            // =========================
+            // 4. 这里只做“登录校验”，不做权限判断
+            // =========================
             return true;
 
         } catch (Exception e) {

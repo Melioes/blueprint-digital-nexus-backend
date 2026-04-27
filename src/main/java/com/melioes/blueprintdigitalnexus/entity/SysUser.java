@@ -13,13 +13,13 @@ public class SysUser {
     private String username;
 
     private String password;
-
+    //真实名称
     private String realName;
-
+    //头像
     private String avatar;
-
+    //账号启动禁用
     private Integer status;
-
+//    防止误删 + 保留历史数据
     @TableLogic // 逻辑删除注解
     private Integer isDeleted;
 

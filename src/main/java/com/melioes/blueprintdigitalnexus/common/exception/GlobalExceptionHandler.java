@@ -3,6 +3,7 @@ package com.melioes.blueprintdigitalnexus.common.exception;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.BadSqlGrammarException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -18,6 +19,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public Result<?> handleBusinessException(BusinessException e) {
         return Result.error(e.getMessage());
+    }
+
+    /**
+     * 参数校验异常（@NotBlank、@NotNull等）
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Result<?> handleValidException(MethodArgumentNotValidException e) {
+        String message = e.getBindingResult().getFieldError().getDefaultMessage();
+        return Result.error(message);
     }
 
     /**

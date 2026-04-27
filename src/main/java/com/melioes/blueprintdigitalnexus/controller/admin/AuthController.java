@@ -5,6 +5,7 @@ import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.LoginDTO;
 import com.melioes.blueprintdigitalnexus.dto.RegisterDTO;
 import com.melioes.blueprintdigitalnexus.service.SysUserService;
+import com.melioes.blueprintdigitalnexus.vo.LoginVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,10 +24,16 @@ public class AuthController {
      * @return 登录结果
      */
     @PostMapping("/login")
-    public Result<String> login(@RequestBody LoginDTO dto) {
-        String token = sysUserService.login(dto);
-        log.info("用户登录成功，username={}", dto.getUsername());
-        return Result.success(token, AuthMessageConstant.LOGIN_SUCCESS);
+    public Result<LoginVO> login(@RequestBody LoginDTO dto) {
+//        String token = sysUserService.login(dto);
+//        log.info("用户登录成功，username={}", dto.getUsername());
+//        return Result.success(token, AuthMessageConstant.LOGIN_SUCCESS);
+
+        LoginVO vo = sysUserService.login(dto);
+
+        log.info("用户登录成功，username={}", dto);
+
+        return Result.success(vo, AuthMessageConstant.LOGIN_SUCCESS);
     }
 
     /**

@@ -9,6 +9,7 @@ package com.melioes.blueprintdigitalnexus.common.constant.rbac;
 //        | 2       | 管理员     | ADMIN       |
 //        | 3       | 运营人员    | OPERATOR    |
 //        | 4       | 普通用户   | USER        |
+//        | 4       | 测试角色   | TEST_ROLE        |
 
 public class RoleConstant {
     /** 超级管理员（系统最高权限） */
@@ -22,4 +23,22 @@ public class RoleConstant {
 
     /** 普通用户 */
     public static final String USER = "USER";
+
+    /** 测试角色 */
+    public static final String TEST_USER = "TEST_ROLE";
+
+    /**
+     * 角色名称已存在
+     */
+    public static final String ROLE_NAME_EXIST = "角色名称已存在";
+
+    /**
+     * 角色标识已存在
+     */
+    public static final String ROLE_CODE_EXIST = "角色标识已存在";
+
+    /**
+     * 该角色正在被使用，无法删除
+     */
+    public static final String ROLE_IN_USE_CANNOT_DELETE = "该角色正在被使用，无法删除";
 }
