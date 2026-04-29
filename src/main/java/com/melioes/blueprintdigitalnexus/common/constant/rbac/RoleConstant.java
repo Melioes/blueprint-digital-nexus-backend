@@ -41,4 +41,9 @@ public class RoleConstant {
      * 该角色正在被使用，无法删除
      */
     public static final String ROLE_IN_USE_CANNOT_DELETE = "该角色正在被使用，无法删除";
+
+    /**
+     * 角色名称不能为空
+     */
+    public static final String ROLE_NAME_EMPTY = "角色名称不能为空";
 }

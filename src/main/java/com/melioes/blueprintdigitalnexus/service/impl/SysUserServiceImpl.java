@@ -10,6 +10,7 @@ import com.melioes.blueprintdigitalnexus.common.constant.rbac.RoleConstant;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
 import com.melioes.blueprintdigitalnexus.common.properties.JwtProperties;
 import com.melioes.blueprintdigitalnexus.common.utils.JwtUtil;
+import com.melioes.blueprintdigitalnexus.common.utils.RoleUtils;
 import com.melioes.blueprintdigitalnexus.convert.UserConvert;
 import com.melioes.blueprintdigitalnexus.dto.EmployeeDTO;
 import com.melioes.blueprintdigitalnexus.dto.LoginDTO;
@@ -85,7 +86,7 @@ public class SysUserServiceImpl
         claims.put("userId", user.getUserId());
         claims.put("username", user.getUsername());
         claims.put("roleKeys", roleKeys);
-
+//
         String token = JwtUtil.generateToken(
                 jwtProperties.getSecretKey(),
                 jwtProperties.getTtl(),
@@ -112,25 +113,14 @@ public class SysUserServiceImpl
 
     @Override
     public void register(RegisterDTO dto) {
-
         // 1. 用户是否存在
         SysUser exist = getUserByUsername(dto.getUsername());
-
         if (exist != null) {
             throw new BusinessException(AuthMessageConstant.USER_ALREADY_EXISTS);
         }
 
-        // 2. 创建用户（复用方法）
-        SysUser user = buildSysUser(dto);
-
-        // 3. 插入用户
-        createUser(user);
-
-        // 4. 分配默认角色（USER）
-        bindDefaultRole(user.getUserId());
+        createUser(buildSysUser(dto), null);
     }
-
-
 
 
     /**
@@ -171,10 +161,10 @@ public class SysUserServiceImpl
      * 新增用户
      * @param dto
      */
+// 修改 addUser 方法
     @Override
     @Transactional
     public void addUser(EmployeeDTO dto) {
-
         // 1. 校验用户名是否存在
         SysUser exist = getUserByUsername(dto.getUsername());
         if (exist != null) {
@@ -182,57 +172,22 @@ public class SysUserServiceImpl
         }
 
         // 2. 构建用户对象
-        SysUser user = new SysUser();
-        user.setUsername(dto.getUsername());
+        SysUser user = buildSysUser(dto);
 
-        // 密码处理
-        String rawPassword = StringUtils.hasText(dto.getPassword())
-                ? dto.getPassword()
-                : PasswordConstant.DEFAULT_PASSWORD;
-
-        user.setPassword(passwordEncoder.encode(rawPassword));
-        user.setRealName(dto.getRealName());
-
-        // 可选字段
-        if (StringUtils.hasText(dto.getAvatar())) {
-            user.setAvatar(dto.getAvatar());
-        }
-
-        // 状态（默认启用）
-        user.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
-
-        // 3. 插入用户
+        // 3. 保存用户
         this.save(user);
 
-        // 获取 userId
-        Long userId = user.getUserId();
-
-        // =========================
-        // 4. 角色绑定（核心优化部分）
-        // =========================
+        // 4. 角色绑定（修改：只在没有指定角色时绑定默认角色）
         List<Long> roleIds = dto.getRoleIds();
-
         if (roleIds != null && !roleIds.isEmpty()) {
-
-            // 批量构建 user_role 关系
-            List<SysUserRole> list = roleIds.stream()
-                    .map(roleId -> {
-                        SysUserRole ur = new SysUserRole();
-                        ur.setUserId(userId);
-                        ur.setRoleId(roleId);
-                        return ur;
-                    })
-                    .toList();
-
-            for (SysUserRole ur : list) {
-                userRoleMapper.insert(ur);
+            // 绑定指定角色
+            for (Long roleId : roleIds) {
+                bindRole(user.getUserId(), roleId);
             }
-
-            log.info("使用前端角色 roleIds={}", roleIds);
-
+            log.info("绑定指定角色 roleIds={}", roleIds);
         } else {
-            // 默认角色兜底
-            bindDefaultRole(userId);
+            // 绑定默认角色
+            bindDefaultRole(user.getUserId());
         }
     }
 
@@ -316,9 +271,31 @@ public class SysUserServiceImpl
 
 
     /**
-     * 构建用户对象（注册 / 后台新增通用）
+     * 构建用户对象（注册场景）
      */
     private SysUser buildSysUser(RegisterDTO dto) {
+        SysUser user = new SysUser();
+
+        // 必填字段
+        user.setUsername(dto.getUsername());
+
+        // 密码处理
+        String rawPassword = StringUtils.hasText(dto.getPassword())
+                ? dto.getPassword()
+                : PasswordConstant.DEFAULT_PASSWORD;
+        user.setPassword(passwordEncoder.encode(rawPassword));
+
+        user.setRealName(dto.getRealName());
+        user.setStatus(1);  // 注册默认启用
+
+        return user;
+    }
+
+
+    /**
+     * 构建用户对象（注册 / 后台新增通用）
+     */
+    private SysUser buildSysUser(EmployeeDTO dto) {
 
         SysUser user = new SysUser();
 
@@ -326,9 +303,9 @@ public class SysUserServiceImpl
         user.setUsername(dto.getUsername());
 
         // 密码处理（为空则给默认密码）
-        String rawPassword = (dto.getPassword() == null)
-                ? PasswordConstant.DEFAULT_PASSWORD
-                : dto.getPassword();
+        String rawPassword = StringUtils.hasText(dto.getPassword())
+                ? dto.getPassword()
+                : PasswordConstant.DEFAULT_PASSWORD;
 
         // 加密存数据库
         String encodedPassword = passwordEncoder.encode(rawPassword);
@@ -338,49 +315,169 @@ public class SysUserServiceImpl
         user.setRealName(dto.getRealName());
 
         // 默认启用账号
-        user.setStatus(1);
-
+        user.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
+        if (StringUtils.hasText(dto.getAvatar())) {
+            user.setAvatar(dto.getAvatar());
+        }
         return user;
     }
 
     /**
      * 创建用户
      */
-    private void createUser(SysUser user) {
-        userMapper.insert(user);
+    private void createUser(SysUser user, String roleKey) {
+//        userMapper.insert(user);
+        this.save(user);
+        // 绑定默认角色
+        // 绑定角色（如果没有传递角色信息，自动分配默认角色）
+        bindDefaultRole(user.getUserId(), roleKey);
     }
 
     /**
      * 绑定默认角色（USER）
      */
+//    private void bindDefaultRole(Long userId) {
+//
+//        // 查询 USER 角色
+//        SysRole role = sysRoleMapper.selectOne(
+//                new LambdaQueryWrapper<SysRole>()
+//                        .eq(SysRole::getRoleKey, RoleConstant.USER)
+//        );
+//
+//        if (role == null) {
+//            throw new BusinessException("默认角色不存在");
+//        }
+//
+//        // 创建用户-角色关联对象
+//        SysUserRole ur = new SysUserRole();
+//
+//        // 设置用户ID
+//        ur.setUserId(userId);
+//
+//        // 设置角色ID
+//        ur.setRoleId(role.getRoleId());
+//
+//        // 插入关系
+//        log.info("准备绑定默认角色 userId={}, roleId={}", userId, role.getRoleId());
+//
+//        int rows = userRoleMapper.insert(ur);
+//
+//        log.info("绑定角色完成 rows={}", rows);
+//    }
+
+
+
+
+    /**
+     * 绑定默认角色
+     * @param userId 用户ID
+     */
     private void bindDefaultRole(Long userId) {
+        bindDefaultRole(userId, null);
+    }
 
-        // 查询 USER 角色
-        SysRole role = sysRoleMapper.selectOne(
-                new LambdaQueryWrapper<SysRole>()
-                        .eq(SysRole::getRoleKey, RoleConstant.USER)
-        );
+    /**
+     * 绑定角色（支持自定义角色或默认角色）
+     * @param userId 用户ID
+     * @param roleKey 角色标识（可为null，为null时使用默认角色）
+     */
+    private void bindDefaultRole(Long userId, String roleKey) {
+        SysRole role;
 
-        if (role == null) {
-            throw new BusinessException("默认角色不存在");
+        if (roleKey == null || roleKey.trim().isEmpty()) {
+            // 没有传递角色，使用默认角色 USER
+            role = sysRoleMapper.selectOne(
+                    new LambdaQueryWrapper<SysRole>()
+                            .eq(SysRole::getRoleKey, RoleConstant.USER)
+            );
+
+            // 如果默认角色不存在，自动创建
+            if (role == null) {
+                log.warn("默认角色 USER 不存在，自动创建");
+                role = createDefaultRole();
+            }
+        } else {
+            // 使用传递的角色
+            role = sysRoleMapper.selectOne(
+                    new LambdaQueryWrapper<SysRole>()
+                            .eq(SysRole::getRoleKey, roleKey)
+            );
+
+            if (role == null) {
+                throw new BusinessException("角色 " + roleKey + " 不存在");
+            }
         }
 
-        // 创建用户-角色关联对象
+        // 创建用户-角色关联
         SysUserRole ur = new SysUserRole();
-
-        // 设置用户ID
         ur.setUserId(userId);
-
-        // 设置角色ID
         ur.setRoleId(role.getRoleId());
+        userRoleMapper.insert(ur);
 
-        // 插入关系
-        log.info("准备绑定默认角色 userId={}, roleId={}", userId, role.getRoleId());
-
-        int rows = userRoleMapper.insert(ur);
-
-        log.info("绑定角色完成 rows={}", rows);
+        log.info("绑定角色成功 userId={}, roleId={}, roleKey={}",
+                userId, role.getRoleId(), role.getRoleKey());
     }
+
+    /**
+     * 创建默认角色
+     * 如果数据库中没有 '普通用户' 角色，就自动创建该角色
+     */
+    private SysRole createDefaultRole() {
+        // 创建一个新的角色实例
+        SysRole role = new SysRole();
+        role.setRoleName("普通用户");  // 使用角色名称常量
+        role.setRoleKey(RoleConstant.USER);
+        role.setDescription("普通用户角色（系统默认）");
+        role.setStatus(1);  // 默认启用
+        role.setIsDeleted(0); // 默认未删除
+
+        // 保存到数据库
+        sysRoleMapper.insert(role);
+        log.info("创建默认角色: {}", role);
+
+        return role;
+    }
+
+    /**
+     * 绑定指定角色（通过角色ID）
+     * @param userId 用户ID
+     * @param roleId 角色ID
+     */
+    private void bindRole(Long userId, Long roleId) {
+        // 1. 校验角色是否存在
+        SysRole role = sysRoleMapper.selectById(roleId);
+        if (role == null) {
+            throw new BusinessException("角色ID不存在: " + roleId);
+        }
+
+        // 2. 校验角色是否已启用
+        if (role.getStatus() != 1) {
+            throw new BusinessException("角色已禁用: " + role.getRoleName());
+        }
+
+        // 3. 校验是否已绑定该角色
+        Long count = userRoleMapper.selectCount(
+                new LambdaQueryWrapper<SysUserRole>()
+                        .eq(SysUserRole::getUserId, userId)
+                        .eq(SysUserRole::getRoleId, roleId)
+        );
+
+        if (count > 0) {
+            log.warn("用户已绑定该角色 userId={}, roleId={}", userId, roleId);
+            return;  // 已绑定则跳过
+        }
+
+        // 4. 创建用户-角色关联
+        SysUserRole ur = new SysUserRole();
+        ur.setUserId(userId);
+        ur.setRoleId(roleId);
+        userRoleMapper.insert(ur);
+
+        log.info("绑定角色成功 userId={}, roleId={}, roleName={}",
+                userId, roleId, role.getRoleName());
+    }
+
+
 }
 
 

@@ -14,7 +14,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -52,11 +54,8 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
             Long userId = Long.valueOf(claims.get("userId").toString());
 
             // 一个用户可能有多个角色
-            List<String> roles = (List<String>) claims.get("roleKeys");
-
-            // =========================
-            // 3. 保存到线程上下文（方便后续使用）
-            // =========================
+            //List<String> roles = (List<String>) claims.get("roleKeys");
+            List<String> roles = getRolesFromClaims(claims);
             UserContext.set(userId);
             UserContext.setRoles(roles);
 
@@ -72,6 +71,25 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
             writeError(response, "token无效或已过期");
             return false;
         }
+    }
+    /// 获取角色
+    private List<String> getRolesFromClaims(Claims claims) {
+        Object roleKeysObj = claims.get("roleKeys");
+
+        if (roleKeysObj == null) {
+            return Collections.emptyList();  // 返回空列表
+        }
+
+        if (!(roleKeysObj instanceof List<?>)) {
+            log.warn("roleKeys 类型错误");
+            return Collections.emptyList();
+        }
+
+        List<?> rawRoles = (List<?>) roleKeysObj;
+        return rawRoles.stream()
+                .filter(item -> item instanceof String)
+                .map(item -> (String) item)
+                .collect(Collectors.toList());
     }
 
     private void writeError(HttpServletResponse response, String msg) throws Exception {

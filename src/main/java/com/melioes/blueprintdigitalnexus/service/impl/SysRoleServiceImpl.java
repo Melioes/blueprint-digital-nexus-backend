@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.melioes.blueprintdigitalnexus.common.constant.auth.ErrorMessageConstant;
 import com.melioes.blueprintdigitalnexus.common.constant.rbac.RoleConstant;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
+import com.melioes.blueprintdigitalnexus.common.utils.RoleUtils;
 import com.melioes.blueprintdigitalnexus.convert.RoleConvert;
 import com.melioes.blueprintdigitalnexus.dto.RoleDTO;
 import com.melioes.blueprintdigitalnexus.entity.SysRole;
@@ -74,14 +75,15 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
      */
     @Override
     public void addRole(RoleDTO dto) {
-
-        // 1. 唯一性校验
+        // 1. 唯一性校验（角色名称）
         checkRoleUnique(dto, false);
 
-        // 2. DTO → Entity
-        SysRole role = roleConvert.toEntity(dto);
+        // 2. 自动生成角色标识（禁止手动输入）
+        String roleKey = RoleUtils.generateRoleKey(dto.getRoleName());
 
-        // 3. 保存
+        // 3. 保存角色
+        SysRole role = roleConvert.toEntity(dto);
+        role.setRoleKey(roleKey);
         this.save(role);
     }
 
@@ -194,28 +196,37 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
      */
     private void checkRoleUnique(RoleDTO dto, boolean isUpdate) {
 
-        // 1. 角色名称
-        LambdaQueryWrapper<SysRole> nameWrapper = new LambdaQueryWrapper<>();
-        nameWrapper.eq(SysRole::getRoleName, dto.getRoleName());
-        //  更新时排除自身
-        if (isUpdate) {
-            nameWrapper.ne(SysRole::getRoleId, dto.getRoleId());
-        }
+//        // 1. 角色名称
+//        LambdaQueryWrapper<SysRole> nameWrapper = new LambdaQueryWrapper<>();
+//        nameWrapper.eq(SysRole::getRoleName, dto.getRoleName());
+//        //  更新时排除自身
+//        if (isUpdate) {
+//            nameWrapper.ne(SysRole::getRoleId, dto.getRoleId());
+//        }
+//
+//        if (this.count(nameWrapper) > 0) {
+//            throw new BusinessException(RoleConstant.ROLE_NAME_EXIST);
+//        }
+//
+//         2. 角色标识
+//        LambdaQueryWrapper<SysRole> keyWrapper = new LambdaQueryWrapper<>();
+//        keyWrapper.eq(SysRole::getRoleKey, dto.getRoleKey());
+//
+//        if (isUpdate) {
+//            keyWrapper.ne(SysRole::getRoleId, dto.getRoleId());
+//        }
+//
+//        if (this.count(keyWrapper) > 0) {
+//            throw new BusinessException(RoleConstant.ROLE_CODE_EXIST);
+//        }
 
-        if (this.count(nameWrapper) > 0) {
+        // 角色名称唯一性检查
+        if (this.count(new LambdaQueryWrapper<SysRole>().eq(SysRole::getRoleName, dto.getRoleName())) > 0) {
             throw new BusinessException(RoleConstant.ROLE_NAME_EXIST);
         }
 
-        // 2. 角色标识
-        LambdaQueryWrapper<SysRole> keyWrapper = new LambdaQueryWrapper<>();
-        keyWrapper.eq(SysRole::getRoleKey, dto.getRoleKey());
 
-        if (isUpdate) {
-            keyWrapper.ne(SysRole::getRoleId, dto.getRoleId());
-        }
-
-        if (this.count(keyWrapper) > 0) {
-            throw new BusinessException(RoleConstant.ROLE_CODE_EXIST);
-        }
     }
+
+
 }
