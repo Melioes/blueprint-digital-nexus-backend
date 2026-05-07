@@ -2,7 +2,9 @@ package com.melioes.blueprintdigitalnexus.query;
 
 import com.melioes.blueprintdigitalnexus.common.query.PageQuery;
 import lombok.Data;
-
+/**
+ * 角色查询参数 继承 PageQuery 以获得 page 和 size 属性
+ */
 @Data
 public class RoleQuery extends PageQuery {
     /**

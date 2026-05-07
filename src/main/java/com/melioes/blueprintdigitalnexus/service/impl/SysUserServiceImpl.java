@@ -36,11 +36,12 @@ import org.springframework.util.StringUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 @Slf4j
 @Service
 public class SysUserServiceImpl
         extends ServiceImpl<SysUserMapper, SysUser>
-        implements SysUserService  {
+        implements SysUserService {
 
     @Autowired
     private SysUserMapper userMapper;
@@ -58,7 +59,6 @@ public class SysUserServiceImpl
     @Autowired
     private UserConvert userConvert;
 
-
     @Override
     public LoginVO login(LoginDTO dto) {
 
@@ -73,7 +73,7 @@ public class SysUserServiceImpl
             throw new BusinessException(AuthMessageConstant.ACCOUNT_DISABLED);
         }
 
-        // 3. 密码校验（BCrypt匹配）  对比数据库
+        // 3. 密码校验（BCrypt匹配） 对比数据库
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             throw new BusinessException(AuthMessageConstant.PASSWORD_ERROR);
         }
@@ -86,12 +86,11 @@ public class SysUserServiceImpl
         claims.put("userId", user.getUserId());
         claims.put("username", user.getUsername());
         claims.put("roleKeys", roleKeys);
-//
+
         String token = JwtUtil.generateToken(
                 jwtProperties.getSecretKey(),
                 jwtProperties.getTtl(),
-                claims
-        );
+                claims);
 
         // =========================
         // 组装返回 VO
@@ -122,9 +121,9 @@ public class SysUserServiceImpl
         createUser(buildSysUser(dto), null);
     }
 
-
     /**
      * 获取用户列表
+     * 
      * @param query
      * @return
      */
@@ -134,17 +133,14 @@ public class SysUserServiceImpl
         // 1. 分页对象（统一从 PageQuery 来）
         Page<SysUser> page = new Page<>(
                 query.getPage(),
-                query.getSize()
-        );
+                query.getSize());
 
         // 2. 查询条件
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
 
-        wrapper.and(StringUtils.hasText(query.getKeyword()), w ->
-                w.like(SysUser::getUsername, query.getKeyword())
-                        .or()
-                        .like(SysUser::getRealName, query.getKeyword())
-        );
+        wrapper.and(StringUtils.hasText(query.getKeyword()), w -> w.like(SysUser::getUsername, query.getKeyword())
+                .or()
+                .like(SysUser::getRealName, query.getKeyword()));
 
         wrapper.orderByDesc(SysUser::getUserId);
 
@@ -159,9 +155,9 @@ public class SysUserServiceImpl
 
     /**
      * 新增用户
+     * 
      * @param dto
      */
-// 修改 addUser 方法
     @Override
     @Transactional
     public void addUser(EmployeeDTO dto) {
@@ -210,7 +206,7 @@ public class SysUserServiceImpl
                 throw new BusinessException(AuthMessageConstant.USER_ALREADY_EXISTS);
             }
         }
-        //  所有字段更新 避免手动赋值
+        // 所有字段更新 避免手动赋值
         userConvert.updateUserFromDto(dto, user);
         // 密码特殊处理
         if (StringUtils.hasText(dto.getPassword())) {
@@ -230,8 +226,6 @@ public class SysUserServiceImpl
         if (user == null) {
             throw new BusinessException(AuthMessageConstant.USER_NOT_FOUND);
         }
-        //        MP 的 getById() 只返回 Entity（SysUser）
-        //       它不会自动变 VO
         return userConvert.toVO(user);
     }
 
@@ -252,23 +246,20 @@ public class SysUserServiceImpl
         return user;
     }
 
-
     /**
      * 根据用户名查询用户
      * 复用：登录 / 注册检查
      */
     private SysUser getUserByUsername(String username) {
-        //查数据库之前检查用户名
+        // 查数据库之前检查用户名
         if (username == null || username.trim().isEmpty()) {
             throw new BusinessException(AuthMessageConstant.USERNAME_EMPTY);
         }
-        //查数据库，获取用户
+        // 查数据库，获取用户
         return this.getOne(
                 new LambdaQueryWrapper<SysUser>()
-                        .eq(SysUser::getUsername, username.trim())
-        );
+                        .eq(SysUser::getUsername, username.trim()));
     }
-
 
     /**
      * 构建用户对象（注册场景）
@@ -286,11 +277,10 @@ public class SysUserServiceImpl
         user.setPassword(passwordEncoder.encode(rawPassword));
 
         user.setRealName(dto.getRealName());
-        user.setStatus(1);  // 注册默认启用
+        user.setStatus(1); // 注册默认启用
 
         return user;
     }
-
 
     /**
      * 构建用户对象（注册 / 后台新增通用）
@@ -326,50 +316,13 @@ public class SysUserServiceImpl
      * 创建用户
      */
     private void createUser(SysUser user, String roleKey) {
-//        userMapper.insert(user);
         this.save(user);
-        // 绑定默认角色
-        // 绑定角色（如果没有传递角色信息，自动分配默认角色）
         bindDefaultRole(user.getUserId(), roleKey);
     }
 
     /**
-     * 绑定默认角色（USER）
-     */
-//    private void bindDefaultRole(Long userId) {
-//
-//        // 查询 USER 角色
-//        SysRole role = sysRoleMapper.selectOne(
-//                new LambdaQueryWrapper<SysRole>()
-//                        .eq(SysRole::getRoleKey, RoleConstant.USER)
-//        );
-//
-//        if (role == null) {
-//            throw new BusinessException("默认角色不存在");
-//        }
-//
-//        // 创建用户-角色关联对象
-//        SysUserRole ur = new SysUserRole();
-//
-//        // 设置用户ID
-//        ur.setUserId(userId);
-//
-//        // 设置角色ID
-//        ur.setRoleId(role.getRoleId());
-//
-//        // 插入关系
-//        log.info("准备绑定默认角色 userId={}, roleId={}", userId, role.getRoleId());
-//
-//        int rows = userRoleMapper.insert(ur);
-//
-//        log.info("绑定角色完成 rows={}", rows);
-//    }
-
-
-
-
-    /**
      * 绑定默认角色
+     * 
      * @param userId 用户ID
      */
     private void bindDefaultRole(Long userId) {
@@ -378,7 +331,8 @@ public class SysUserServiceImpl
 
     /**
      * 绑定角色（支持自定义角色或默认角色）
-     * @param userId 用户ID
+     * 
+     * @param userId  用户ID
      * @param roleKey 角色标识（可为null，为null时使用默认角色）
      */
     private void bindDefaultRole(Long userId, String roleKey) {
@@ -388,8 +342,7 @@ public class SysUserServiceImpl
             // 没有传递角色，使用默认角色 USER
             role = sysRoleMapper.selectOne(
                     new LambdaQueryWrapper<SysRole>()
-                            .eq(SysRole::getRoleKey, RoleConstant.USER)
-            );
+                            .eq(SysRole::getRoleKey, RoleConstant.USER));
 
             // 如果默认角色不存在，自动创建
             if (role == null) {
@@ -400,8 +353,7 @@ public class SysUserServiceImpl
             // 使用传递的角色
             role = sysRoleMapper.selectOne(
                     new LambdaQueryWrapper<SysRole>()
-                            .eq(SysRole::getRoleKey, roleKey)
-            );
+                            .eq(SysRole::getRoleKey, roleKey));
 
             if (role == null) {
                 throw new BusinessException("角色 " + roleKey + " 不存在");
@@ -425,10 +377,10 @@ public class SysUserServiceImpl
     private SysRole createDefaultRole() {
         // 创建一个新的角色实例
         SysRole role = new SysRole();
-        role.setRoleName("普通用户");  // 使用角色名称常量
+        role.setRoleName("普通用户");
         role.setRoleKey(RoleConstant.USER);
         role.setDescription("普通用户角色（系统默认）");
-        role.setStatus(1);  // 默认启用
+        role.setStatus(1); // 默认启用
         role.setIsDeleted(0); // 默认未删除
 
         // 保存到数据库
@@ -440,6 +392,7 @@ public class SysUserServiceImpl
 
     /**
      * 绑定指定角色（通过角色ID）
+     * 
      * @param userId 用户ID
      * @param roleId 角色ID
      */
@@ -459,12 +412,11 @@ public class SysUserServiceImpl
         Long count = userRoleMapper.selectCount(
                 new LambdaQueryWrapper<SysUserRole>()
                         .eq(SysUserRole::getUserId, userId)
-                        .eq(SysUserRole::getRoleId, roleId)
-        );
+                        .eq(SysUserRole::getRoleId, roleId));
 
         if (count > 0) {
             log.warn("用户已绑定该角色 userId={}, roleId={}", userId, roleId);
-            return;  // 已绑定则跳过
+            return; // 已绑定则跳过
         }
 
         // 4. 创建用户-角色关联
@@ -477,7 +429,4 @@ public class SysUserServiceImpl
                 userId, roleId, role.getRoleName());
     }
 
-
 }
-
-

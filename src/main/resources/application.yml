@@ -1,6 +1,13 @@
 # 应用服务 WEB 访问端口
 server:
-  port: 8080
+  port: 8443
+  ssl:
+    enabled: true
+    key-store: classpath:cert/localhost+2.p12
+    key-store-password: changeit
+    key-store-type: PKCS12
+    key-alias: 1
+    protocol: TLS
 
 spring:
   datasource:
@@ -11,13 +18,17 @@ spring:
 
 mybatis-plus:
   # mapper XML 文件扫描路径
-
   mapper-locations: classpath:/mapper/**/*.xml
 
   # 实体类包路径（可选）
-  # 作用：开启类型别名后，在 XML 中可以简写类名
+  # 作用：开启resultType类型别名后，在 XML 中可以简写类名
   # 例如：com.xxx.entity.User → 直接写 User
   type-aliases-package: com.melioes.blueprintdigitalnexus.entity
+  global-config:
+    db-config:
+      logic-delete-field: is_deleted       # 逻辑删除字段名（数据库里的）
+      logic-not-delete-value: 0            # 未删除 = 0
+      logic-delete-value: 1                # 已删除 = 1
 
   configuration:
     # 开启下划线转驼峰命名
@@ -31,3 +42,16 @@ jwt:
   ttl: 86400000
   token-name: token
 
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    enable-swagger-models: true
+  production: false
+  # 分组配置
+  basic:
+    enable: false  # 是否开启认证（生产环境建议开启）
+
+# HTTP 端口配置（用于调试）
+http:
+  port: 8080

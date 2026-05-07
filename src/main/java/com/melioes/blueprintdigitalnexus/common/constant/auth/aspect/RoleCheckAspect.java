@@ -1,6 +1,7 @@
 package com.melioes.blueprintdigitalnexus.common.constant.auth.aspect;
 
 import com.melioes.blueprintdigitalnexus.common.constant.auth.annotation.RequiresRole;
+import com.melioes.blueprintdigitalnexus.common.constant.rbac.RoleConstant;
 import com.melioes.blueprintdigitalnexus.common.context.UserContext;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.util.List;
+
 //JWT拦截器（解析 roles）
 //        ↓
 //        UserContext.setRoles(["USER","ADMIN"])
@@ -30,8 +32,9 @@ public class RoleCheckAspect {
     /**
      * 拦截所有标记了 @RequiresRole 的方法
      */
-//    @Around("@annotation(com.melioes.blueprintdigitalnexus.common.constant.auth.annotation.RequiresRole)")
-    public void rolePointcut() {}
+    // @Around("@annotation(com.melioes.blueprintdigitalnexus.common.constant.auth.annotation.RequiresRole)")
+    public void rolePointcut() {
+    }
 
     // ② 环绕通知
     @Around("rolePointcut()")
@@ -59,7 +62,7 @@ public class RoleCheckAspect {
         // 如果用户没有角色信息，直接拒绝
         if (userRoles == null || userRoles.isEmpty()) {
             log.warn("[权限] 用户角色为空，拒绝访问");
-            throw new BusinessException("未获取到用户角色信息");
+            throw new BusinessException(RoleConstant.NO_USER_ROLE_INFO);
         }
 
         // 4. 校验是否匹配任意一个角色
@@ -74,6 +77,6 @@ public class RoleCheckAspect {
         // 5. 无权限
         log.warn("[权限] 权限不足，拒绝访问 -> userRoles={}, need={}",
                 userRoles, requiresRole.value());
-        throw new BusinessException("无权限访问该接口");
+        throw new BusinessException(RoleConstant.NO_PERMISSION_ACCESS);
     }
 }

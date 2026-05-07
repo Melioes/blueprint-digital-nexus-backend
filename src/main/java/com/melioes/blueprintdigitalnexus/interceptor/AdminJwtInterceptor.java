@@ -5,11 +5,13 @@ import com.melioes.blueprintdigitalnexus.common.context.UserContext;
 import com.melioes.blueprintdigitalnexus.common.properties.JwtProperties;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.common.utils.JwtUtil;
+import com.melioes.blueprintdigitalnexus.service.PermissionService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -25,6 +27,9 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
     @Autowired
     private JwtProperties jwtProperties;
 
+    @Autowired
+    @Lazy
+    private PermissionService permissionService;
     @Override
     public boolean preHandle(HttpServletRequest request,
                              HttpServletResponse response,
@@ -59,11 +64,14 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
             UserContext.set(userId);
             UserContext.setRoles(roles);
 
+            // 加权限
+            List<String> permissions = permissionService.getUserPermissions(userId);
+            UserContext.setPermissions(permissions);
             log.info("[Admin] 认证成功 userId={}, roles={}", userId, roles);
 
-            // =========================
+
             // 4. 这里只做“登录校验”，不做权限判断
-            // =========================
+
             return true;
 
         } catch (Exception e) {

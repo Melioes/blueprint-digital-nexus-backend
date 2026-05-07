@@ -6,12 +6,15 @@ import com.melioes.blueprintdigitalnexus.dto.EmployeeDTO;
 import com.melioes.blueprintdigitalnexus.query.UserQuery;
 import com.melioes.blueprintdigitalnexus.service.SysUserService;
 import com.melioes.blueprintdigitalnexus.vo.EmployeeVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
+@Tag(name = "用户管理", description = "用户管理接口")
 @RequestMapping("/admin/user")
 public class SysUserController {
 
@@ -20,9 +23,13 @@ public class SysUserController {
 
     /**
      * 用户分页查询
+     * 需要角色：SUPER_ADMIN, ADMIN
+     * 需要权限：system:user:view
      */
-//    @RequiresRole({"ADMIN"})
     @GetMapping("/page")
+    @Operation(summary = "分页查询用户", description = "根据条件分页查询用户列表")
+//    @RequiresRole({RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN})
+//    @RequiresPermission("system:user:view")
     public Result<IPage<EmployeeVO>> page(UserQuery query) {
         log.info("分页查询用户: page={}, size={}, keyword={}",
                 query.getPage(),
@@ -30,13 +37,19 @@ public class SysUserController {
                 query.getKeyword()
         );
 
-        // 查询用户分页（包含 page / size / keyword）
         return Result.success(sysUserService.getUserPage(query));
     }
+
     /**
      * 新增用户
+     * 需要角色：SUPER_ADMIN, ADMIN
+     * 需要权限：system:user:add
      */
     @PostMapping
+    @Operation(summary = "新增用户", description = "创建新用户")
+//    @RequiresPermission("system:user:add")
+//    @RequiresRole({RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN})
+
     public Result<Void> add(@RequestBody EmployeeDTO dto) {
         log.info("新增用户请求: {}", dto);
         sysUserService.addUser(dto);
@@ -44,9 +57,14 @@ public class SysUserController {
     }
 
     /**
-     * 删除用户（MP）
+     * 删除用户
+     * 需要角色：SUPER_ADMIN, ADMIN
+     * 需要权限：system:user:delete
      */
     @DeleteMapping("/{id}")
+    @Operation(summary = "删除用户", description = "根据ID删除用户")
+//    @RequiresRole({RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN})
+//    @RequiresPermission("system:user:delete")
     public Result<Void> delete(@PathVariable Long id) {
         log.info("删除用户id:{}", id);
         sysUserService.removeById(id);
@@ -55,8 +73,13 @@ public class SysUserController {
 
     /**
      * 修改用户
+     * 需要角色：SUPER_ADMIN, ADMIN
+     * 需要权限：system:user:edit
      */
     @PutMapping
+    @Operation(summary = "修改用户", description = "更新用户信息")
+//    @RequiresRole({RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN})
+//    @RequiresPermission("system:user:edit")
     public Result<Void> update(@RequestBody EmployeeDTO dto) {
         log.info("修改用户请求: {}", dto);
         sysUserService.updateUser(dto);
@@ -64,9 +87,14 @@ public class SysUserController {
     }
 
     /**
-     * 查询单个用户（MP）
+     * 查询单个用户详情
+     * 需要角色：SUPER_ADMIN, ADMIN, DEV
+     * 需要权限：system:user:view
      */
     @GetMapping("/{id}")
+    @Operation(summary = "查询用户详情", description = "根据ID查询用户详情")
+//    @RequiresRole({RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN})
+//    @RequiresPermission("system:user:view")
     public Result<EmployeeVO> detail(@PathVariable Long id) {
         log.info("查询用户详情, id={}", id);
         return Result.success(sysUserService.getUserDetail(id));

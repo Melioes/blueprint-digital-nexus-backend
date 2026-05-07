@@ -15,6 +15,9 @@ public class UserContext {
     // 角色信息
 
     private static final ThreadLocal<List<String>> ROLES = new ThreadLocal<>();
+    // 权限信息
+    private static final ThreadLocal<List<String>> PERMISSIONS = new ThreadLocal<>();
+
 
     /**
      * 设置用户ID
@@ -45,10 +48,23 @@ public class UserContext {
     }
 
     /**
+     * 设置权限（新增）
+     */
+    public static void setPermissions(List<String> permissions) {
+        PERMISSIONS.set(permissions);
+    }
+    /**
+     * 获取权限（新增）
+     */
+    public static List<String> getPermissions() {
+        return PERMISSIONS.get();
+    }
+    /**
      * 清理线程数据
      */
     public static void remove() {
         USER_ID.remove();
         ROLES.remove();
+        PERMISSIONS.remove();
     }
 }

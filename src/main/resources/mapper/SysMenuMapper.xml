@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.melioes.blueprintdigitalnexus.mapper.SysMenuMapper">
+
+    <select id="selectPermissionsByRoleKeys" resultType="java.lang.String">
+        SELECT DISTINCT m.permission
+        FROM sys_menu m
+        JOIN sys_role_menu rm ON m.menu_id = rm.menu_id
+        JOIN sys_role r ON rm.role_id = r.role_id
+        WHERE r.role_key IN
+        <foreach collection="list" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        AND m.permission IS NOT NULL
+        AND m.permission &lt;&gt; ''
+        AND m.is_deleted = 0
+        AND r.is_deleted = 0
+    </select>
+
+</mapper>
