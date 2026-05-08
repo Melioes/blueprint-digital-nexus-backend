@@ -16,7 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/admin/category")
-@Tag(name = "商品分类管理")
+@Tag(name = "商品分类管理", description = "商品分类管理相关接口")
 public class ProductCategoryController {
 
     @Autowired

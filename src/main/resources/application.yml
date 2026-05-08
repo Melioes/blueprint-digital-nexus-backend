@@ -27,7 +27,7 @@ mybatis-plus:
   global-config:
     db-config:
       logic-delete-field: is_deleted       # 逻辑删除字段名（数据库里的）
-      logic-not-delete-value: 0            # 未删除 = 0
+      logic-not-delete-value: 0            # 未删除 = 0 自动在插入时填充 0
       logic-delete-value: 1                # 已删除 = 1
 
   configuration:
