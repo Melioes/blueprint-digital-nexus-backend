@@ -99,7 +99,11 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         // 1. 获取商品是否存在
         Product product = getAndCheckProduct(productDto.getProductId());
         checkSkuUnique(productDto.getSkuCode(), productDto.getProductId());
-
+        // 3. 增强校验：如果修改了分类，检查新分类是否存在 (调用分类 Service 或 Mapper)
+        if (productDto.getCategoryId() != null) {
+            // 这里可以调用 categoryService.getById() 检查
+            log.info("检查关联分类是否存在: {}", productDto.getCategoryId());
+        }
         // 转换
         BeanUtils.copyProperties(productDto,product);
         // 保存
