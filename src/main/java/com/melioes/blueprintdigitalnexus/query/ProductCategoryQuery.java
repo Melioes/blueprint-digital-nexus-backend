@@ -4,27 +4,25 @@ import com.melioes.blueprintdigitalnexus.common.query.PageQuery;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/**
- * 角色查询参数 继承 PageQuery 以获得 page 和 size 属性
- */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class RoleQuery extends PageQuery {
+public class ProductCategoryQuery extends PageQuery {
     /**
-     * 搜索关键字（角色名/标识）
+     * 搜索关键词（模糊匹配名称或编码）
      */
     private String keyword;
-
     /**
-     * 状态（0禁用 1启用）
+     * 状态过滤
      */
     private Integer status;
 
+
+    /** 检查这个字段是否存在 */
+    private Long parentId;
+
+
     /**
-     * 是否用于下拉框
-     * true = 只查启用 + 精简字段
+     * 下拉框标识 true 开启业务守卫
      */
     private Boolean dropdown;
-
-
 }

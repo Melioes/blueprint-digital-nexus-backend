@@ -4,15 +4,22 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
+/**
+ * 商品数据传输对象
+ * 用于接收前端新增/修改商品的请求参数
+ */
 @Data
 public class ProductDTO {
     private Long productId;
-    private String skuCode;     // SKU编码，唯一
-    private String productName;
-    private Long categoryId;    // 分类ID
-    private String unit;        // 单位（件、盒、kg）
-    private String spec;        // 规格
-    private BigDecimal price;   // 价格
+    private String skuCode; // SKU编码，唯一（前端传或后端生成，当前为前端传）
+    private String productName; // 商品名称
+    private Long categoryId; // 分类ID
+    private String unit; // 单位（件、盒、kg）
+    private String spec; // 规格
+    private String barcode; // 条码
+    private BigDecimal price; // 价格
+    private BigDecimal weight; // 重量(kg)
+    private BigDecimal volume; // 体积(m³)
     private Integer publishStatus; // 0下架，1上架
-    private String remark;      // 备注
+    private String remark; // 备注
 }

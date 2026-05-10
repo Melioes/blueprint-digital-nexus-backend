@@ -6,74 +6,161 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.melioes.blueprintdigitalnexus.common.constant.wms.ProductConstant;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
+import com.melioes.blueprintdigitalnexus.common.utils.CodeGenerator;
 import com.melioes.blueprintdigitalnexus.dto.ProductDTO;
 import com.melioes.blueprintdigitalnexus.entity.Product;
+import com.melioes.blueprintdigitalnexus.entity.ProductCategory;
 import com.melioes.blueprintdigitalnexus.mapper.ProductMapper;
 import com.melioes.blueprintdigitalnexus.query.ProductQuery;
+import com.melioes.blueprintdigitalnexus.service.ProductCategoryService;
 import com.melioes.blueprintdigitalnexus.service.ProductService;
 import com.melioes.blueprintdigitalnexus.vo.ProductVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+/**
+ * 商品业务实现类
+ */
 @Slf4j
 @Service
 public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> implements ProductService {
+
+    @Autowired
+    @Lazy // 延迟加载，防止循环依赖
+    private ProductCategoryService productCategoryService;
+
     /**
-     * 商品列表
+     * SKU 前缀常量
+     */
+    private static final String SKU_PREFIX = "SKU";
+
+    /**
+     * 分页查询商品列表
      *
      * @param query 查询条件（关键词、分类ID、分页参数）
      * @return 商品分页数据
      */
     @Override
     public IPage<ProductVO> getProductPage(ProductQuery query) {
-        // 使用 PageQuery 中定义的 page 和 size
-        Page<Product> pageParams = new Page<>(query.getPage(), query.getSize());
+        // 处理分页参数默认值
+        int page = query.getPage() == null ? 1 : query.getPage();
+        int size = query.getSize() == null ? 10 : query.getSize();
+
+        Page<Product> pageParams = new Page<>(page, size);
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
 
-        // 模糊搜索关键词
         if (StringUtils.hasText(query.getKeyword())) {
             wrapper.and(w -> w.like(Product::getProductName, query.getKeyword())
                     .or()
-                    .like(Product::getSkuCode, query.getKeyword()));
+                    .like(Product::getSkuCode, query.getKeyword())
+                    .or()
+                    .like(Product::getBarcode, query.getKeyword()));
         }
 
-        // 分类筛选
         if (query.getCategoryId() != null) {
             wrapper.eq(Product::getCategoryId, query.getCategoryId());
         }
 
-        IPage<Product> result = this.page(pageParams, wrapper);
+        if (query.getPublishStatus() != null) {
+            wrapper.eq(Product::getPublishStatus, query.getPublishStatus());
+        }
 
-        return result.convert(entity -> {
-            ProductVO vo = new ProductVO();
-            BeanUtils.copyProperties(entity, vo);
-            return vo;
-        });
+        wrapper.orderByDesc(Product::getCreateTime);
+
+        IPage<Product> result = this.page(pageParams, wrapper);
+        return result.convert(this::convertToProductVO);
     }
+
     /**
-     * 添加商品
+     * 根据ID查询商品详情
      *
-      * @param dto 商品信息
+     * @param productId 商品ID
+     * @return 商品详情VO
+     */
+    @Override
+    public ProductVO getProductById(Long productId) {
+        Product product = getAndCheckProduct(productId);
+        return convertToProductVO(product);
+    }
+
+    /**
+     * 查询商品列表（无分页）
+     *
+     * @param query 查询条件
+     * @return 商品列表
+     */
+    @Override
+    public List<ProductVO> getProductList(ProductQuery query) {
+        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
+
+        if (StringUtils.hasText(query.getKeyword())) {
+            wrapper.and(w -> w.like(Product::getProductName, query.getKeyword())
+                    .or()
+                    .like(Product::getSkuCode, query.getKeyword())
+                    .or()
+                    .like(Product::getBarcode, query.getKeyword()));
+        }
+
+        if (query.getCategoryId() != null) {
+            wrapper.eq(Product::getCategoryId, query.getCategoryId());
+        }
+
+        if (query.getPublishStatus() != null) {
+            wrapper.eq(Product::getPublishStatus, query.getPublishStatus());
+        }
+
+        wrapper.orderByDesc(Product::getCreateTime);
+
+        return this.list(wrapper).stream()
+                .map(this::convertToProductVO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 新增商品
+     *
+     * @param dto 商品信息DTO
      */
     @Override
     public void addProduct(ProductDTO dto) {
-        // 1. 校验SKU是否重复
-        checkSkuUnique(dto.getSkuCode(), null);
-        // 2. 转换并保存
+        log.info("新增商品: productName={}, categoryId={}", dto.getProductName(), dto.getCategoryId());
+        // 生成SKU码
+        // 获取今日已创建的商品数量
+        int todayCount = countTodayProducts();
+        // 生成SKU码，格式为：SKU-20230405-001
+        String skuCode = CodeGenerator.generate(SKU_PREFIX, todayCount);
+        dto.setSkuCode(skuCode);
+
         Product product = new Product();
-        // 转换
         BeanUtils.copyProperties(dto, product);
-        // 3. 状态自动补充：如果没传状态，默认设为“已上架” (使用常量)
+
         if (product.getPublishStatus() == null) {
             product.setPublishStatus(ProductConstant.PUBLISH);
         }
 
         this.save(product);
-        // 2. 关键：记录落库后的真实 ID，方便回溯
-        log.info("OK: 商品已持久化, 数据库分配ID: {}, SKU: {}", product.getProductId(), product.getSkuCode());
+        log.info("OK: 商品新增成功, productId={}, skuCode={}", product.getProductId(), product.getSkuCode());
     }
 
+    /**
+     * 统计今日已创建的商品数量
+     *
+     * @return 今日商品数量
+     */
+    private int countTodayProducts() {
+        String todayDateStr = CodeGenerator.getTodayDateStr();
+        String likePattern = SKU_PREFIX + "-" + todayDateStr + "%";
+        return Math.toIntExact(this.lambdaQuery()
+                .likeRight(Product::getSkuCode, likePattern)
+                .count());
+    }
 
     /**
      * 删除商品
@@ -82,63 +169,95 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
      */
     @Override
     public void deleteById(Long id) {
-        //  获取商品是否存在
-        Product product = getAndCheckProduct(id);
-        //  删除商品
-        this.removeById(product);
-        log.info("OK: 商品删除完成, ID: {}", id);
+        log.info("删除商品: id={}", id);
 
+        Product product = getAndCheckProduct(id);
+        this.removeById(product);
+        log.info("OK: 商品删除成功, id={}", id);
     }
+
     /**
      * 修改商品
      *
-     * @param productDto 商品信息
+     * @param productDto 商品信息DTO
      */
     @Override
     public void updateProduct(ProductDTO productDto) {
-        // 1. 获取商品是否存在
+        log.info("修改商品: productId={}", productDto.getProductId());
+
         Product product = getAndCheckProduct(productDto.getProductId());
         checkSkuUnique(productDto.getSkuCode(), productDto.getProductId());
-        // 3. 增强校验：如果修改了分类，检查新分类是否存在 (调用分类 Service 或 Mapper)
+
         if (productDto.getCategoryId() != null) {
-            // 这里可以调用 categoryService.getById() 检查
-            log.info("检查关联分类是否存在: {}", productDto.getCategoryId());
+            productCategoryService.getById(productDto.getCategoryId());
         }
-        // 转换
-        BeanUtils.copyProperties(productDto,product);
-        // 保存
+
+        BeanUtils.copyProperties(productDto, product);
         this.updateById(product);
-        log.info("OK: 商品信息更新成功, ID: {}", productDto.getProductId());
+        log.info("OK: 商品修改成功, productId={}", productDto.getProductId());
     }
+
     /**
      * 校验SKU是否重复
      *
-     * @param skuCode  SKU编码
+     * @param skuCode   SKU编码
      * @param productId 商品ID
      */
     private void checkSkuUnique(String skuCode, Long productId) {
-        // 查询SKU是否重复 动态拼接查询条件productId != null
-        Long count = this.lambdaQuery().eq(Product::getSkuCode, skuCode).ne(productId != null, Product::getProductId, productId).count();
-        // 重复则抛出异常
+        if (!StringUtils.hasText(skuCode)) {
+            return;
+        }
+
+        Long count = this.lambdaQuery()
+                .eq(Product::getSkuCode, skuCode)
+                .ne(productId != null, Product::getProductId, productId)
+                .count();
+
         if (count > 0) {
-            log.warn("FAIL: SKU 查重未通过 -> 试图占用的编号: {}, 当前商品ID: {}", skuCode, productId);
-            throw new BusinessException(ProductConstant.SKU_ALREADY_EXISTS);
+            log.warn("FAIL: SKU重复校验失败 -> skuCode={}, productId={}", skuCode, productId);
+            throw new BusinessException(String.format(ProductConstant.SKU_ALREADY_EXISTS, skuCode));
         }
     }
 
-
     /**
-     * 这是一个“守卫”方法：确保商品存在，否则直接报错
+     * 守卫方法：确保商品存在，否则直接报错
+     *
+     * @param productId 商品ID
+     * @return 商品实体
      */
     private Product getAndCheckProduct(Long productId) {
-        // 1. 获取商品
         Product product = this.getById(productId);
-        // 2. 判断商品是否存在
         if (product == null) {
-            // 记录异常尝试
-            log.warn("FAIL: 业务检查失败，目标商品不存在, ID: {}", productId);
+            log.warn("FAIL: 商品不存在, productId={}", productId);
             throw new BusinessException(ProductConstant.PRODUCT_NOT_FOUND);
         }
-        return product; // 顺便把查出来的对象还给人家
+        return product;
+    }
+
+    /**
+     * 将商品实体转换为视图对象
+     * 包含：关联查询分类名称、转换状态名称
+     *
+     * @param entity 商品实体
+     * @return 商品视图对象
+     */
+    private ProductVO convertToProductVO(Product entity) {
+        ProductVO vo = new ProductVO();
+        BeanUtils.copyProperties(entity, vo);
+
+        if (entity.getCategoryId() != null) {
+            ProductCategory category = productCategoryService.getById(entity.getCategoryId());
+            if (category != null) {
+                vo.setCategoryName(category.getCategoryName());
+            }
+        }
+
+        if (ProductConstant.PUBLISH.equals(entity.getPublishStatus())) {
+            vo.setPublishStatusName(ProductConstant.PUBLISH_NAME);
+        } else if (ProductConstant.UNPUBLISH.equals(entity.getPublishStatus())) {
+            vo.setPublishStatusName(ProductConstant.UNPUBLISH_NAME);
+        }
+
+        return vo;
     }
 }
