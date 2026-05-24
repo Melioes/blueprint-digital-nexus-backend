@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.melioes.blueprintdigitalnexus.common.constant.DateConstant;
 import com.melioes.blueprintdigitalnexus.common.constant.wms.ProductConstant;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
 import com.melioes.blueprintdigitalnexus.common.service.SequenceSyncService;
+import com.melioes.blueprintdigitalnexus.common.utils.CodeGenerator;
 import com.melioes.blueprintdigitalnexus.common.utils.RedisIdGenerator;
 import com.melioes.blueprintdigitalnexus.dto.ProductDTO;
 import com.melioes.blueprintdigitalnexus.entity.Product;
@@ -23,9 +25,9 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -44,14 +46,6 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
     private RedisIdGenerator redisIdGenerator;
 
     /**
-     * SKU 前缀常量
-     */
-    private static final String SKU_PREFIX = "SKU";
-    private static final Pattern SKU_PATTERN = Pattern.compile("^SKU-(\\d{8})-(\\d+)$");
-    private static final java.time.format.DateTimeFormatter DATE_FORMATTER = java.time.format.DateTimeFormatter
-            .ofPattern("yyyyMMdd");
-
-    /**
      * 分页查询商品列表
      *
      * @param query 查询条件（关键词、分类ID、分页参数）
@@ -64,7 +58,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
         // int size = query.getSize() == null ? 10 : query.getSize();
         //
         // Page<Product> pageParams = new Page<>(page, size);
-        // 优化成公共方法 手动在
+        // 优化成公共方法
         Page<Product> pageParams = new Page<>(query.fetchPage(), query.fetchSize());
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
 
@@ -150,7 +144,10 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
         }
 
         // 生成SKU码，最多重试 3 次防止冲突
-        String skuCode = generateSkuCodeWithRetry(3);
+        String skuCode = CodeGenerator.generateWithRetry(
+                ProductConstant.SKU_CODE_PREFIX,
+                redisIdGenerator,
+                code -> this.lambdaQuery().eq(Product::getSkuCode, code).count() > 0);
         dto.setSkuCode(skuCode);
 
         Product product = new Product();
@@ -164,89 +161,33 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
         log.info("OK: 商品新增成功, productId={}, skuCode={}", product.getProductId(), product.getSkuCode());
     }
 
-    /**
-     * 生成SKU码，带重试机制
-     *
-     * @param maxRetries 最大重试次数
-     * @return SKU码
-     */
-    private String generateSkuCodeWithRetry(int maxRetries) {
-        int retryCount = 0;
-        while (retryCount < maxRetries) {
-            String code = generateSkuCode();
-
-            // 双重校验：检查数据库中是否已存在此编码
-            Long count = this.lambdaQuery()
-                    .eq(Product::getSkuCode, code)
-                    .count();
-
-            if (count == 0) {
-                log.info("生成编码成功: code={}, retry={}", code, retryCount);
-                return code;
-            }
-
-            log.warn("编码冲突，准备重试: code={}, retry={}", code, retryCount);
-            retryCount++;
-        }
-
-        // 重试多次仍然失败，使用数据库兜底模式强制生成
-        log.error("重试多次仍然失败，使用数据库兜底模式");
-        String dateStr = java.time.LocalDate.now().format(DATE_FORMATTER);
-        int dbMaxSequence = getTodayMaxSequence(dateStr);
-        String fallbackCode = String.format("%s-%s-%03d", SKU_PREFIX, dateStr, dbMaxSequence + 1);
-        log.info("兜底编码: code={}", fallbackCode);
-        return fallbackCode;
-    }
-
-    /**
-     * 生成SKU码（单次）
-     */
-    private String generateSkuCode() {
-        long sequence = redisIdGenerator.generateId(SKU_PREFIX);
-        String dateStr = java.time.LocalDate.now().format(DATE_FORMATTER);
-        return String.format("%s-%s-%03d", SKU_PREFIX, dateStr, sequence);
-    }
-
     // ==================== SequenceSyncService 接口实现 ====================
 
     @Override
     public String getBusinessPrefix() {
-        return SKU_PREFIX;
+        return ProductConstant.SKU_CODE_PREFIX;
     }
 
     @Override
     public int getTodayMaxSequence(String dateStr) {
-        // 查询今日创建的所有商品
-        java.time.LocalDateTime startOfDay = java.time.LocalDate.parse(dateStr, DATE_FORMATTER).atStartOfDay();
-        java.time.LocalDateTime endOfDay = startOfDay.plusDays(1);
+        log.debug("[ProductServiceImpl] 统计今日最大序号: date={}", dateStr);
 
+        // 1. 计算当天的开始和结束时间
+        LocalDateTime startOfDay = LocalDate.parse(dateStr, DateConstant.FORMATTER_YYYYMMDD).atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+        // 2. 查询当天创建的所有商品
         List<Product> products = this.lambdaQuery()
                 .ge(Product::getCreateTime, startOfDay)
                 .lt(Product::getCreateTime, endOfDay)
                 .list();
 
-        // 从编码中提取最大序号
-        int maxSequence = 0;
-        for (Product product : products) {
-            String code = product.getSkuCode();
-            if (code != null) {
-                Matcher matcher = SKU_PATTERN.matcher(code);
-                if (matcher.matches()) {
-                    String seqStr = matcher.group(2);
-                    try {
-                        int seq = Integer.parseInt(seqStr);
-                        if (seq > maxSequence) {
-                            maxSequence = seq;
-                        }
-                    } catch (NumberFormatException e) {
-                        log.warn("解析编码序号失败: code={}", code);
-                    }
-                }
-            }
-        }
-
-        log.debug("统计今日最大序号: date={}, max={}", dateStr, maxSequence);
-        return maxSequence;
+        // 3. 使用通用工具类计算最大序号
+        return CodeGenerator.getTodayMaxSequence(
+                dateStr,
+                ProductConstant.SKU_CODE_PREFIX,
+                products,
+                Product::getSkuCode);
     }
 
     /**

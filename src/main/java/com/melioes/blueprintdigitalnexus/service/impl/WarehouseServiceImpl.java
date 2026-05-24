@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.melioes.blueprintdigitalnexus.common.constant.DateConstant;
 import com.melioes.blueprintdigitalnexus.common.constant.wms.WarehouseConstant;
 import com.melioes.blueprintdigitalnexus.common.service.SequenceSyncService;
 import com.melioes.blueprintdigitalnexus.common.utils.BizValidateUtil;
+import com.melioes.blueprintdigitalnexus.common.utils.CodeGenerator;
 import com.melioes.blueprintdigitalnexus.common.utils.RedisIdGenerator;
 import com.melioes.blueprintdigitalnexus.dto.WarehouseDTO;
 import com.melioes.blueprintdigitalnexus.entity.Warehouse;
@@ -22,10 +24,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -40,13 +39,6 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
     @Autowired
     private RedisIdGenerator redisIdGenerator;
 
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
-
-    /**
-     * 编码正则：WH-20260512-003 -> 提取序号 3
-     */
-    private static final Pattern CODE_PATTERN = Pattern.compile("^WH-(\\d{8})-(\\d+)$");
-
     /**
      * 分页查询仓库列表
      *
@@ -55,10 +47,10 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
      */
     @Override
     public IPage<WarehouseVO> getWarehousePage(WarehouseQuery query) {
-//        int pageNum = query.getPage() == null ? 1 : query.getPage();
-//        int pageSize = query.getSize() == null ? 10 : query.getSize();
-//
-//        Page<Warehouse> pageParam = new Page<>(pageNum, pageSize);
+        // int pageNum = query.getPage() == null ? 1 : query.getPage();
+        // int pageSize = query.getSize() == null ? 10 : query.getSize();
+        //
+        // Page<Warehouse> pageParam = new Page<>(pageNum, pageSize);
         Page<Warehouse> pageParams = new Page<>(query.fetchPage(), query.fetchSize());
         LambdaQueryWrapper<Warehouse> wrapper = buildQueryWrapper(query);
         wrapper.orderByDesc(Warehouse::getCreateTime);
@@ -117,7 +109,10 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
                 WarehouseConstant.WAREHOUSE_NAME_EXISTS);
 
         // 2. 生成编码，最多重试 3 次防止冲突
-        String warehouseCode = generateWarehouseCodeWithRetry(3);
+        String warehouseCode = CodeGenerator.generateWithRetry(
+                WarehouseConstant.WAREHOUSE_CODE_PREFIX,
+                redisIdGenerator,
+                code -> this.lambdaQuery().eq(Warehouse::getWarehouseCode, code).count() > 0);
         dto.setWarehouseCode(warehouseCode);
 
         // 3. 设置默认状态（启用）
@@ -132,58 +127,6 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
 
         log.info("OK: 仓库新增成功: warehouseId={}, warehouseCode={}",
                 warehouse.getWarehouseId(), warehouse.getWarehouseCode());
-    }
-
-    /**
-     * 生成仓库编码，带重试机制
-     *
-     * @param maxRetries 最大重试次数
-     * @return 仓库编码
-     */
-    private String generateWarehouseCodeWithRetry(int maxRetries) {
-        int retryCount = 0;
-        while (retryCount < maxRetries) {
-            String code = generateWarehouseCode();
-
-            // 双重校验：检查数据库中是否已存在此编码
-            Long count = this.lambdaQuery()
-                    .eq(Warehouse::getWarehouseCode, code)
-                    .count();
-
-            if (count == 0) {
-                log.info("生成编码成功: code={}, retry={}", code, retryCount);
-                return code;
-            }
-
-            log.warn("编码冲突，准备重试: code={}, retry={}", code, retryCount);
-            retryCount++;
-        }
-
-        // 重试多次仍然失败，使用数据库兜底模式强制生成
-        log.error("重试多次仍然失败，使用数据库兜底模式");
-        // 获取当前日期 格式化为 yyyyMMdd
-        String dateStr = LocalDate.now().format(DATE_FORMATTER);
-        // 获取数据库中该日期的序号最大值
-        int dbMaxSequence = getTodayMaxSequence(dateStr);
-        // 生成编码
-        String fallbackCode = String.format("%s-%s-%03d",
-                // 仓库编码前缀
-                WarehouseConstant.WAREHOUSE_CODE_PREFIX, dateStr, dbMaxSequence + 1);
-        log.info("兜底编码: code={}", fallbackCode);
-        // 强制使用数据库模式
-        return fallbackCode;
-    }
-
-    /**
-     * 生成仓库编码（单次）
-     */
-    private String generateWarehouseCode() {
-        // 使用 Redis 生成序号
-        long sequence = redisIdGenerator.generateId(WarehouseConstant.WAREHOUSE_CODE_PREFIX);
-        // 生成日期
-        String dateStr = LocalDate.now().format(DATE_FORMATTER);
-        // 生成编码
-        return String.format("%s-%s-%03d", WarehouseConstant.WAREHOUSE_CODE_PREFIX, dateStr, sequence);
     }
 
     /**
@@ -217,7 +160,7 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
         }
 
         // 3. 不允许修改仓库编码（编码一旦生成就固定，保持唯一性）
-        //把原来的key打回去
+        // 把原来的key打回去
         dto.setWarehouseCode(warehouse.getWarehouseCode());
 
         // 4. 更新
@@ -311,36 +254,23 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
 
     @Override
     public int getTodayMaxSequence(String dateStr) {
-        // 查询今日创建的所有仓库
-        LocalDateTime startOfDay = LocalDate.parse(dateStr, DATE_FORMATTER).atStartOfDay();
+        log.debug("[WarehouseServiceImpl] 统计今日最大序号: date={}", dateStr);
+
+        // 1. 计算当天的开始和结束时间
+        LocalDateTime startOfDay = LocalDate.parse(dateStr, DateConstant.FORMATTER_YYYYMMDD).atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
 
+        // 2. 查询当天创建的所有仓库
         List<Warehouse> warehouses = this.lambdaQuery()
                 .ge(Warehouse::getCreateTime, startOfDay)
                 .lt(Warehouse::getCreateTime, endOfDay)
                 .list();
 
-        // 从编码中提取最大序号
-        int maxSequence = 0;
-        for (Warehouse warehouse : warehouses) {
-            String code = warehouse.getWarehouseCode();
-            if (code != null) {
-                Matcher matcher = CODE_PATTERN.matcher(code);
-                if (matcher.matches()) {
-                    String seqStr = matcher.group(2);
-                    try {
-                        int seq = Integer.parseInt(seqStr);
-                        if (seq > maxSequence) {
-                            maxSequence = seq;
-                        }
-                    } catch (NumberFormatException e) {
-                        log.warn("解析编码序号失败: code={}", code);
-                    }
-                }
-            }
-        }
-
-        log.debug("统计今日最大序号: date={}, max={}", dateStr, maxSequence);
-        return maxSequence;
+        // 3. 使用通用工具类计算最大序号
+        return CodeGenerator.getTodayMaxSequence(
+                dateStr,
+                WarehouseConstant.WAREHOUSE_CODE_PREFIX,
+                warehouses,
+                Warehouse::getWarehouseCode);
     }
 }

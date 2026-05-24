@@ -109,7 +109,7 @@ public class RedisIdGenerator {
         SequenceSyncService syncService = syncServiceMap.get(businessPrefix);
         // 同步服务存在
         if (syncService != null) {
-            // 获取今日最大序号
+            // 获取今日最大序号 (商品类，商品分类，仓库分类 的getTodayMaxSequence)
             int maxSequence = syncService.getTodayMaxSequence(dateStr);
             // 序号 + 1
             long nextSequence = maxSequence + 1;

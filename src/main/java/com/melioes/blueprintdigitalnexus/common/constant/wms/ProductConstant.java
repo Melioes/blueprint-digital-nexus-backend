@@ -6,6 +6,12 @@ package com.melioes.blueprintdigitalnexus.common.constant.wms;
  */
 public class ProductConstant {
 
+    /** 商品SKU编码前缀 */
+    public static final String SKU_CODE_PREFIX = "SKU";
+
+    /** 商品分类编码前缀 */
+    public static final String CATEGORY_CODE_PREFIX = "CATE";
+
     /** 商品状态：已上架 */
     public static final Integer PUBLISH = 1;
 
