@@ -2,6 +2,9 @@ package com.melioes.blueprintdigitalnexus.dto;
 
 import lombok.Data;
 
+/**
+ * 角色数据传输对象
+ */
 @Data
 public class RoleDTO {
     private Long roleId;

@@ -42,4 +42,11 @@ public interface ProductCategoryService  extends IService<ProductCategory> {
      * @return 分类 VO 列表
      */
     IPage<ProductCategoryVO> getCategoryPage(ProductCategoryQuery query);
+
+    /**
+     * 校验分类是否存在，不存在则抛出异常
+     * @param id 分类ID
+     * @return 分类实体
+     */
+    ProductCategory getAndCheckCategory(Long id);
 }

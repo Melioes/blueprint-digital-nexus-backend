@@ -3,7 +3,9 @@ package com.melioes.blueprintdigitalnexus.vo;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-
+/**
+ * 登录返回 / 当前用户信息 / JWT解析后返回
+ */
 @Data
 public class EmployeeVO {
 

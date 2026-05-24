@@ -82,7 +82,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
             throw new BusinessException("角色标识不能为空");
         }
 
-        // 3. 保存角色
+        // 3. 保存角色 经过处理
         SysRole role = roleConvert.toEntity(dto);
         this.save(role);
     }

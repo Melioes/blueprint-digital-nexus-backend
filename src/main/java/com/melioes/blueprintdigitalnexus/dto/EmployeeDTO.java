@@ -5,7 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.util.List;
-
+/**
+ * 员工DTO
+ */
 @Data
 public class EmployeeDTO {
 

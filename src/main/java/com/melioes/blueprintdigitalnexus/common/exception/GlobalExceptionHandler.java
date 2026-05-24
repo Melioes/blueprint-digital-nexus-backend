@@ -1,8 +1,10 @@
 package com.melioes.blueprintdigitalnexus.common.exception;
 
 import com.melioes.blueprintdigitalnexus.common.result.Result;
+import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -20,6 +22,17 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    //  专门处理JWT token过期异常
+    /**
+     * JWT token已过期
+     */
+    @ExceptionHandler(ExpiredJwtException.class)
+    public Result<?> handleExpiredJwtException(ExpiredJwtException e) {
+        // 只打印一行简洁的警告日志，不打印完整堆栈
+        // 生产环境可以把日志级别改成debug
+        return Result.error(401, "登录已过期，请重新登录");
+    }
     /**
      * 业务异常
      */
@@ -54,7 +67,18 @@ public class GlobalExceptionHandler {
         e.printStackTrace();
         return Result.error("数据冲突或约束错误（如重复数据或外键限制）");
     }
+    // 处理唯一索引冲突
+    @ExceptionHandler(DuplicateKeyException.class)
+    public Result<?> handleDuplicateKeyException(DuplicateKeyException e){
+        String msg = e.getMessage().toLowerCase();
 
+        // 只有 用户手动传ID 新增时才会触发
+        if (msg.contains("primary")) {
+            return Result.error("主键ID已存在，新增请勿手动指定ID");
+        }
+
+        return Result.error("数据重复，请检查后重试");
+    }
 
     // 处理 JSON 格式错误
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -87,7 +111,9 @@ public class GlobalExceptionHandler {
     public Result<?> handleMissingPathVariable(MissingPathVariableException e) {
         return Result.error("请求地址非法，缺少必要的路径参数：" + e.getVariableName());
     }
-
+    /**
+     * 参数类型不匹配（如传入参数类型错误）
+     */
     @ExceptionHandler(TypeMismatchException.class)
     public Result<?> handleTypeMismatch(TypeMismatchException e) {
         return Result.error("参数类型错误，请输入正确的数据格式" + e.getMessage());

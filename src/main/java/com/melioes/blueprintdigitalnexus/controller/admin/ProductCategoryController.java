@@ -10,6 +10,7 @@ import com.melioes.blueprintdigitalnexus.service.ProductCategoryService;
 import com.melioes.blueprintdigitalnexus.vo.ProductCategoryVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,7 +45,7 @@ public class ProductCategoryController {
     @PostMapping("/add")
     @Operation(summary = "新增分类")
     //@RequiresPermission("product:category:add")
-    public Result<Void> add(@RequestBody ProductCategoryDTO categoryDto) {
+    public Result<Void> add(@RequestBody @Valid ProductCategoryDTO categoryDto) {
         categoryService.addCategory(categoryDto);
         return Result.success();
     }

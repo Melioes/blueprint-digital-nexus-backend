@@ -6,7 +6,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.melioes.blueprintdigitalnexus.common.constant.wms.ProductConstant;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
-import com.melioes.blueprintdigitalnexus.common.utils.CodeGenerator;
+import com.melioes.blueprintdigitalnexus.common.service.SequenceSyncService;
+import com.melioes.blueprintdigitalnexus.common.utils.RedisIdGenerator;
 import com.melioes.blueprintdigitalnexus.dto.ProductCategoryDTO;
 import com.melioes.blueprintdigitalnexus.entity.Product;
 import com.melioes.blueprintdigitalnexus.entity.ProductCategory;
@@ -27,6 +28,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -35,15 +38,21 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMapper, ProductCategory>
-        implements ProductCategoryService {
+        implements ProductCategoryService, SequenceSyncService {
 
     @Autowired
     @Lazy
     private ProductService productService;
 
+    @Autowired
+    private RedisIdGenerator redisIdGenerator;
+
     private static final Long TOP_PARENT_ID = 0L;
     private static final Integer DEFAULT_SORT = 0;
     private static final String CATEGORY_PREFIX = "CATE";
+    private static final Pattern CATEGORY_PATTERN = Pattern.compile("^CATE-(\\d{8})-(\\d+)$");
+    private static final java.time.format.DateTimeFormatter DATE_FORMATTER = java.time.format.DateTimeFormatter
+            .ofPattern("yyyyMMdd");
 
     /**
      * 获取分类树形结构
@@ -76,7 +85,8 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void addCategory(ProductCategoryDTO productCategoryDTO) {
-        log.info("新增分类: categoryName={}, parentId={}", productCategoryDTO.getCategoryName(), productCategoryDTO.getParentId());
+        log.info("新增分类: categoryName={}, parentId={}", productCategoryDTO.getCategoryName(),
+                productCategoryDTO.getParentId());
 
         if (productCategoryDTO.getParentId() == null) {
             productCategoryDTO.setParentId(TOP_PARENT_ID);
@@ -89,8 +99,11 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
             this.getAndCheckCategory(productCategoryDTO.getParentId());
         }
 
-        int todayCount = countTodayCategories();
-        String categoryCode = CodeGenerator.generate(CATEGORY_PREFIX, todayCount);
+        // 校验同一层级下名称唯一性
+        checkCategoryNameUnique(productCategoryDTO.getCategoryName(), productCategoryDTO.getParentId(), null);
+
+        // 生成分类编码，最多重试 3 次防止冲突
+        String categoryCode = generateCategoryCodeWithRetry(3);
         productCategoryDTO.setCategoryCode(categoryCode);
 
         if (productCategoryDTO.getStatus() == null) {
@@ -106,16 +119,88 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
     }
 
     /**
-     * 统计今日已创建的分类数量
+     * 生成分类编码，带重试机制
      *
-     * @return 今日分类数量
+     * @param maxRetries 最大重试次数
+     * @return 分类编码
      */
-    private int countTodayCategories() {
-        String todayDateStr = CodeGenerator.getTodayDateStr();
-        String likePattern = CATEGORY_PREFIX + "-" + todayDateStr + "%";
-        return Math.toIntExact(this.lambdaQuery()
-                .likeRight(ProductCategory::getCategoryCode, likePattern)
-                .count());
+    private String generateCategoryCodeWithRetry(int maxRetries) {
+        int retryCount = 0;
+        while (retryCount < maxRetries) {
+            String code = generateCategoryCode();
+
+            // 双重校验：检查数据库中是否已存在此编码
+            Long count = this.lambdaQuery()
+                    .eq(ProductCategory::getCategoryCode, code)
+                    .count();
+
+            if (count == 0) {
+                log.info("生成编码成功: code={}, retry={}", code, retryCount);
+                return code;
+            }
+
+            log.warn("编码冲突，准备重试: code={}, retry={}", code, retryCount);
+            retryCount++;
+        }
+
+        // 重试多次仍然失败，使用数据库兜底模式强制生成
+        log.error("重试多次仍然失败，使用数据库兜底模式");
+        String dateStr = java.time.LocalDate.now().format(DATE_FORMATTER);
+        int dbMaxSequence = getTodayMaxSequence(dateStr);
+        String fallbackCode = String.format("%s-%s-%03d", CATEGORY_PREFIX, dateStr, dbMaxSequence + 1);
+        log.info("兜底编码: code={}", fallbackCode);
+        return fallbackCode;
+    }
+
+    /**
+     * 生成分类编码（单次）
+     */
+    private String generateCategoryCode() {
+        long sequence = redisIdGenerator.generateId(CATEGORY_PREFIX);
+        String dateStr = java.time.LocalDate.now().format(DATE_FORMATTER);
+        return String.format("%s-%s-%03d", CATEGORY_PREFIX, dateStr, sequence);
+    }
+
+    // ==================== SequenceSyncService 接口实现 ====================
+
+    @Override
+    public String getBusinessPrefix() {
+        return CATEGORY_PREFIX;
+    }
+
+    @Override
+    public int getTodayMaxSequence(String dateStr) {
+        // 查询今日创建的所有分类
+        java.time.LocalDateTime startOfDay = java.time.LocalDate.parse(dateStr, DATE_FORMATTER).atStartOfDay();
+        java.time.LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+        List<ProductCategory> categories = this.lambdaQuery()
+                .ge(ProductCategory::getCreateTime, startOfDay)
+                .lt(ProductCategory::getCreateTime, endOfDay)
+                .list();
+
+        // 从编码中提取最大序号
+        int maxSequence = 0;
+        for (ProductCategory category : categories) {
+            String code = category.getCategoryCode();
+            if (code != null) {
+                Matcher matcher = CATEGORY_PATTERN.matcher(code);
+                if (matcher.matches()) {
+                    String seqStr = matcher.group(2);
+                    try {
+                        int seq = Integer.parseInt(seqStr);
+                        if (seq > maxSequence) {
+                            maxSequence = seq;
+                        }
+                    } catch (NumberFormatException e) {
+                        log.warn("解析编码序号失败: code={}", code);
+                    }
+                }
+            }
+        }
+
+        log.debug("统计今日最大序号: date={}, max={}", dateStr, maxSequence);
+        return maxSequence;
     }
 
     /**
@@ -170,11 +255,19 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
             this.getAndCheckCategory(dto.getParentId());
         }
 
-        checkCategoryCodeUnique(dto.getCategoryCode(), dto.getCategoryId());
+        // 校验同一层级下名称唯一性
+        checkCategoryNameUnique(dto.getCategoryName(), dto.getParentId(), dto.getCategoryId());
+
+        // 保存原有的 categoryCode，不允许修改
+        String originalCategoryCode = entity.getCategoryCode();
 
         BeanUtils.copyProperties(dto, entity);
+
+        // 恢复原有的 categoryCode
+        entity.setCategoryCode(originalCategoryCode);
+
         this.updateById(entity);
-        log.info("OK: 分类更新成功, ID: {}", dto.getCategoryId());
+        log.info("OK: 分类更新成功, ID: {}, categoryCode: {}", dto.getCategoryId(), originalCategoryCode);
     }
 
     /**
@@ -218,11 +311,11 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
     @Override
     public IPage<ProductCategoryVO> getCategoryPage(ProductCategoryQuery query) {
         // 处理分页参数默认值
-        int pageNum = query.getPage() == null ? 1 : query.getPage();
-        int pageSize = query.getSize() == null ? 10 : query.getSize();
-
-        IPage<ProductCategory> page = new Page<>(pageNum, pageSize);
-
+//        int pageNum = query.getPage() == null ? 1 : query.getPage();
+//        int pageSize = query.getSize() == null ? 10 : query.getSize();
+//
+//        IPage<ProductCategory> page = new Page<>(pageNum, pageSize);
+        Page<ProductCategory> pageParams = new Page<>(query.fetchPage(), query.fetchSize());
         LambdaQueryWrapper<ProductCategory> wrapper = new LambdaQueryWrapper<>();
 
         if (StringUtils.hasText(query.getKeyword())) {
@@ -237,8 +330,8 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
 
         wrapper.orderByAsc(ProductCategory::getSort)
                 .orderByDesc(ProductCategory::getCreateTime);
-
-        return this.page(page, wrapper).convert(entity -> {
+        //
+        return this.page(pageParams, wrapper).convert(entity -> {
             ProductCategoryVO vo = new ProductCategoryVO();
             BeanUtils.copyProperties(entity, vo);
             return vo;
@@ -251,13 +344,38 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
      * @param id 分类ID
      * @return 分类实体
      */
-    private ProductCategory getAndCheckCategory(Long id) {
+    @Override
+    public ProductCategory getAndCheckCategory(Long id) {
         ProductCategory category = this.getById(id);
         if (category == null) {
             log.warn("FAIL: 业务检查失败，分类不存在, ID: {}", id);
             throw new BusinessException(ProductConstant.CATEGORY_NOT_FOUND);
         }
         return category;
+    }
+
+    /**
+     * 校验同一层级下分类名称是否重复
+     *
+     * @param categoryName 分类名称
+     * @param parentId     父分类ID
+     * @param categoryId   当前分类ID（用于更新时排除自己）
+     */
+    private void checkCategoryNameUnique(String categoryName, Long parentId, Long categoryId) {
+        if (!StringUtils.hasText(categoryName)) {
+            return;
+        }
+
+        Long count = this.lambdaQuery()
+                .eq(ProductCategory::getCategoryName, categoryName)
+                .eq(ProductCategory::getParentId, parentId)
+                .ne(categoryId != null, ProductCategory::getCategoryId, categoryId)
+                .count();
+
+        if (count > 0) {
+            log.warn("FAIL: 同一层级下分类名称重复 -> categoryName={}, parentId={}", categoryName, parentId);
+            throw new BusinessException(String.format(ProductConstant.CATEGORY_NAME_ALREADY_EXISTS, categoryName));
+        }
     }
 
     /**
@@ -289,10 +407,11 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
      * @param categoryId   分类ID
      */
     private void checkCategoryCodeUnique(String categoryCode, Long categoryId) {
+        // 如果分类编码为空，则直接返回
         if (!StringUtils.hasText(categoryCode)) {
             return;
         }
-
+        // 查询分类编码是否重复
         Long count = this.lambdaQuery()
                 .eq(ProductCategory::getCategoryCode, categoryCode)
                 .ne(categoryId != null, ProductCategory::getCategoryId, categoryId)

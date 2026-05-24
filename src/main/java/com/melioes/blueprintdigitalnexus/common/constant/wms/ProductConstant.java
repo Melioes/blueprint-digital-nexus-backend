@@ -31,4 +31,5 @@ public class ProductConstant {
     public static final String CATEGORY_HAS_CHILDREN = "操作拦截：该分类下还存在子分类，请先删除子分类";
     public static final String CATEGORY_HAS_PRODUCTS = "操作拦截：该分类下已关联商品，无法删除";
     public static final String CATEGORY_CODE_ALREADY_EXISTS = "操作失败：分类编码 [%s] 已存在，请检查";
+    public static final String CATEGORY_NAME_ALREADY_EXISTS = "操作失败：同一层级下分类名称 [%s] 已存在，请检查";
 }

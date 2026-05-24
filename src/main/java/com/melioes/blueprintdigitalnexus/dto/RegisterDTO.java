@@ -1,7 +1,9 @@
 package com.melioes.blueprintdigitalnexus.dto;
 
 import lombok.Data;
-
+/**
+ * 注册参数
+ */
 @Data
 public class RegisterDTO {
 

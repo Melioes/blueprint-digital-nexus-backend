@@ -6,7 +6,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.melioes.blueprintdigitalnexus.common.constant.wms.ProductConstant;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
-import com.melioes.blueprintdigitalnexus.common.utils.CodeGenerator;
+import com.melioes.blueprintdigitalnexus.common.service.SequenceSyncService;
+import com.melioes.blueprintdigitalnexus.common.utils.RedisIdGenerator;
 import com.melioes.blueprintdigitalnexus.dto.ProductDTO;
 import com.melioes.blueprintdigitalnexus.entity.Product;
 import com.melioes.blueprintdigitalnexus.entity.ProductCategory;
@@ -23,6 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -30,16 +33,23 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> implements ProductService {
+public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
+        implements ProductService, SequenceSyncService {
 
     @Autowired
     @Lazy // 延迟加载，防止循环依赖
     private ProductCategoryService productCategoryService;
 
+    @Autowired
+    private RedisIdGenerator redisIdGenerator;
+
     /**
      * SKU 前缀常量
      */
     private static final String SKU_PREFIX = "SKU";
+    private static final Pattern SKU_PATTERN = Pattern.compile("^SKU-(\\d{8})-(\\d+)$");
+    private static final java.time.format.DateTimeFormatter DATE_FORMATTER = java.time.format.DateTimeFormatter
+            .ofPattern("yyyyMMdd");
 
     /**
      * 分页查询商品列表
@@ -50,10 +60,12 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     @Override
     public IPage<ProductVO> getProductPage(ProductQuery query) {
         // 处理分页参数默认值
-        int page = query.getPage() == null ? 1 : query.getPage();
-        int size = query.getSize() == null ? 10 : query.getSize();
-
-        Page<Product> pageParams = new Page<>(page, size);
+        // int page = query.getPage() == null ? 1 : query.getPage();
+        // int size = query.getSize() == null ? 10 : query.getSize();
+        //
+        // Page<Product> pageParams = new Page<>(page, size);
+        // 优化成公共方法 手动在
+        Page<Product> pageParams = new Page<>(query.fetchPage(), query.fetchSize());
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
 
         if (StringUtils.hasText(query.getKeyword())) {
@@ -63,17 +75,17 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
                     .or()
                     .like(Product::getBarcode, query.getKeyword()));
         }
-
+        // 分类筛选
         if (query.getCategoryId() != null) {
             wrapper.eq(Product::getCategoryId, query.getCategoryId());
         }
-
+        // 上架状态筛选
         if (query.getPublishStatus() != null) {
             wrapper.eq(Product::getPublishStatus, query.getPublishStatus());
         }
-
+        // 按创建时间倒序
         wrapper.orderByDesc(Product::getCreateTime);
-
+        // 执行分页查询
         IPage<Product> result = this.page(pageParams, wrapper);
         return result.convert(this::convertToProductVO);
     }
@@ -131,11 +143,14 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     @Override
     public void addProduct(ProductDTO dto) {
         log.info("新增商品: productName={}, categoryId={}", dto.getProductName(), dto.getCategoryId());
-        // 生成SKU码
-        // 获取今日已创建的商品数量
-        int todayCount = countTodayProducts();
-        // 生成SKU码，格式为：SKU-20230405-001
-        String skuCode = CodeGenerator.generate(SKU_PREFIX, todayCount);
+
+        // 校验分类是否存在
+        if (dto.getCategoryId() != null) {
+            productCategoryService.getAndCheckCategory(dto.getCategoryId());
+        }
+
+        // 生成SKU码，最多重试 3 次防止冲突
+        String skuCode = generateSkuCodeWithRetry(3);
         dto.setSkuCode(skuCode);
 
         Product product = new Product();
@@ -150,16 +165,88 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     }
 
     /**
-     * 统计今日已创建的商品数量
+     * 生成SKU码，带重试机制
      *
-     * @return 今日商品数量
+     * @param maxRetries 最大重试次数
+     * @return SKU码
      */
-    private int countTodayProducts() {
-        String todayDateStr = CodeGenerator.getTodayDateStr();
-        String likePattern = SKU_PREFIX + "-" + todayDateStr + "%";
-        return Math.toIntExact(this.lambdaQuery()
-                .likeRight(Product::getSkuCode, likePattern)
-                .count());
+    private String generateSkuCodeWithRetry(int maxRetries) {
+        int retryCount = 0;
+        while (retryCount < maxRetries) {
+            String code = generateSkuCode();
+
+            // 双重校验：检查数据库中是否已存在此编码
+            Long count = this.lambdaQuery()
+                    .eq(Product::getSkuCode, code)
+                    .count();
+
+            if (count == 0) {
+                log.info("生成编码成功: code={}, retry={}", code, retryCount);
+                return code;
+            }
+
+            log.warn("编码冲突，准备重试: code={}, retry={}", code, retryCount);
+            retryCount++;
+        }
+
+        // 重试多次仍然失败，使用数据库兜底模式强制生成
+        log.error("重试多次仍然失败，使用数据库兜底模式");
+        String dateStr = java.time.LocalDate.now().format(DATE_FORMATTER);
+        int dbMaxSequence = getTodayMaxSequence(dateStr);
+        String fallbackCode = String.format("%s-%s-%03d", SKU_PREFIX, dateStr, dbMaxSequence + 1);
+        log.info("兜底编码: code={}", fallbackCode);
+        return fallbackCode;
+    }
+
+    /**
+     * 生成SKU码（单次）
+     */
+    private String generateSkuCode() {
+        long sequence = redisIdGenerator.generateId(SKU_PREFIX);
+        String dateStr = java.time.LocalDate.now().format(DATE_FORMATTER);
+        return String.format("%s-%s-%03d", SKU_PREFIX, dateStr, sequence);
+    }
+
+    // ==================== SequenceSyncService 接口实现 ====================
+
+    @Override
+    public String getBusinessPrefix() {
+        return SKU_PREFIX;
+    }
+
+    @Override
+    public int getTodayMaxSequence(String dateStr) {
+        // 查询今日创建的所有商品
+        java.time.LocalDateTime startOfDay = java.time.LocalDate.parse(dateStr, DATE_FORMATTER).atStartOfDay();
+        java.time.LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+        List<Product> products = this.lambdaQuery()
+                .ge(Product::getCreateTime, startOfDay)
+                .lt(Product::getCreateTime, endOfDay)
+                .list();
+
+        // 从编码中提取最大序号
+        int maxSequence = 0;
+        for (Product product : products) {
+            String code = product.getSkuCode();
+            if (code != null) {
+                Matcher matcher = SKU_PATTERN.matcher(code);
+                if (matcher.matches()) {
+                    String seqStr = matcher.group(2);
+                    try {
+                        int seq = Integer.parseInt(seqStr);
+                        if (seq > maxSequence) {
+                            maxSequence = seq;
+                        }
+                    } catch (NumberFormatException e) {
+                        log.warn("解析编码序号失败: code={}", code);
+                    }
+                }
+            }
+        }
+
+        log.debug("统计今日最大序号: date={}, max={}", dateStr, maxSequence);
+        return maxSequence;
     }
 
     /**
@@ -186,15 +273,22 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         log.info("修改商品: productId={}", productDto.getProductId());
 
         Product product = getAndCheckProduct(productDto.getProductId());
-        checkSkuUnique(productDto.getSkuCode(), productDto.getProductId());
 
+        // 校验分类是否存在
         if (productDto.getCategoryId() != null) {
-            productCategoryService.getById(productDto.getCategoryId());
+            productCategoryService.getAndCheckCategory(productDto.getCategoryId());
         }
 
+        // 保存原有的 skuCode，不允许修改
+        String originalSkuCode = product.getSkuCode();
+
         BeanUtils.copyProperties(productDto, product);
+
+        // 恢复原有的 skuCode
+        product.setSkuCode(originalSkuCode);
+
         this.updateById(product);
-        log.info("OK: 商品修改成功, productId={}", productDto.getProductId());
+        log.info("OK: 商品修改成功, productId={}, skuCode={}", productDto.getProductId(), originalSkuCode);
     }
 
     /**

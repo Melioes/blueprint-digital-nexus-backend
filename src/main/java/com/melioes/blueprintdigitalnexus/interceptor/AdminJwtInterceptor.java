@@ -7,6 +7,8 @@ import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.common.utils.JwtUtil;
 import com.melioes.blueprintdigitalnexus.service.PermissionService;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,6 +33,10 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
     @Autowired
     @Lazy
     private PermissionService permissionService;
+
+    // 复用ObjectMapper实例，避免每次创建
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     @Override
     public boolean preHandle(HttpServletRequest request,
                              HttpServletResponse response,
@@ -43,7 +50,7 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
         log.info("[Admin] 请求进入拦截器, token={}", token);
 
         if (token == null || token.isEmpty()) {
-            writeError(response, "未登录");
+            writeJsonResponse(response, 401, "未登录，请先登录");
             return false;
         }
 
@@ -59,7 +66,6 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
             Long userId = Long.valueOf(claims.get("userId").toString());
 
             // 一个用户可能有多个角色
-            //List<String> roles = (List<String>) claims.get("roleKeys");
             List<String> roles = getRolesFromClaims(claims);
             UserContext.set(userId);
             UserContext.setRoles(roles);
@@ -69,17 +75,28 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
             UserContext.setPermissions(permissions);
             log.info("[Admin] 认证成功 userId={}, roles={}", userId, roles);
 
-
-            // 4. 这里只做“登录校验”，不做权限判断
+            // 4. 这里只做"登录校验"，不做权限判断
 
             return true;
 
+        } catch (ExpiredJwtException e) {
+            // ✅ 专门处理token过期异常，只打印一行警告日志，不打印堆栈
+            log.warn("[Admin] token已过期: {}", e.getMessage());
+            writeJsonResponse(response, 401, "登录已过期，请重新登录");
+            return false;
+        } catch (JwtException e) {
+            // ✅ 处理其他所有JWT异常（签名错误、格式错误、篡改等）
+            log.warn("[Admin] token无效: {}", e.getMessage());
+            writeJsonResponse(response, 401, "无效的登录凭证，请重新登录");
+            return false;
         } catch (Exception e) {
-            log.error("[Admin] token解析失败", e);
-            writeError(response, "token无效或已过期");
+            // ✅ 处理其他未知异常，打印完整堆栈方便排查
+            log.error("[Admin] 认证过程发生未知错误", e);
+            writeJsonResponse(response, 500, "系统认证失败，请联系管理员");
             return false;
         }
     }
+
     /// 获取角色
     private List<String> getRolesFromClaims(Claims claims) {
         Object roleKeysObj = claims.get("roleKeys");
@@ -100,11 +117,17 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
                 .collect(Collectors.toList());
     }
 
-    private void writeError(HttpServletResponse response, String msg) throws Exception {
+    // ✅ 统一返回JSON格式响应，使用你标准的Result格式
+    private void writeJsonResponse(HttpServletResponse response, Integer code, String message) throws IOException {
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(
-                new ObjectMapper().writeValueAsString(Result.error(msg))
-        );
+        response.setStatus(HttpServletResponse.SC_OK); // HTTP状态码统一返回200，业务状态码用Result里的code
+
+        // 使用你统一的Result格式
+        Result<Void> result = Result.error(code, message);
+        String json = OBJECT_MAPPER.writeValueAsString(result);
+
+        response.getWriter().write(json);
+        response.getWriter().flush();
     }
 
     @Override

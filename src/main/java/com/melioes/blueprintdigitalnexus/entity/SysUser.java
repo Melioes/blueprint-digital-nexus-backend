@@ -3,7 +3,9 @@ package com.melioes.blueprintdigitalnexus.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import java.time.LocalDateTime;
-
+/**
+ * 系统用户实体类
+ */
 @Data
 @TableName("sys_user")
 public class SysUser {

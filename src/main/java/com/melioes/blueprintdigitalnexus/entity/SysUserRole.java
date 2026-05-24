@@ -6,7 +6,9 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-
+/**
+ * 用户角色关联实体类
+ */
 @Data
 @TableName("sys_user_role")
 public class SysUserRole {

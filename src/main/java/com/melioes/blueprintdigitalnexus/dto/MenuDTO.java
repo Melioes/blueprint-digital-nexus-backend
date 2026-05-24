@@ -1,7 +1,9 @@
 package com.melioes.blueprintdigitalnexus.dto;
 
 import lombok.Data;
-
+/**
+ * 菜单DTO
+ */
 @Data
 public class MenuDTO {
     //编辑需要

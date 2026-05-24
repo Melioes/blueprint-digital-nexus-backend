@@ -3,7 +3,9 @@ package com.melioes.blueprintdigitalnexus.vo;
 import lombok.Data;
 
 import java.util.List;
-
+/**
+ * 菜单VO
+ */
 @Data
 public class MenuVO {
 

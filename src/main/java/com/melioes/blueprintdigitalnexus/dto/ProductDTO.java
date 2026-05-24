@@ -1,5 +1,7 @@
 package com.melioes.blueprintdigitalnexus.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -11,7 +13,9 @@ import java.math.BigDecimal;
 @Data
 public class ProductDTO {
     private Long productId;
-    private String skuCode; // SKU编码，唯一（前端传或后端生成，当前为前端传）
+    private String skuCode; // SKU编码，唯一
+    @NotBlank(message = "商品名称不能为空")
+    @Size(max = 100, message = "商品名称长度不能超过100个字符")
     private String productName; // 商品名称
     private Long categoryId; // 分类ID
     private String unit; // 单位（件、盒、kg）

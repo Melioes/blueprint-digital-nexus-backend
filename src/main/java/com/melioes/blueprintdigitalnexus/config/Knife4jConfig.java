@@ -45,6 +45,18 @@ public class Knife4jConfig {
 //                .pathsToMatch("/**")
 //                .build();
 //    }
+
+    /**
+     * AI 接口文档分组
+     */
+    @Bean
+    public GroupedOpenApi aiApi() {
+        return GroupedOpenApi.builder()
+                .group("ai")
+                .displayName("AI 智能接口")
+                .pathsToMatch("/ai/**")
+                .build();
+    }
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()

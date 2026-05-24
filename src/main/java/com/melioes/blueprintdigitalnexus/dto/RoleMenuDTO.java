@@ -4,7 +4,9 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.util.List;
-
+/**
+ * 角色菜单数据传输对象
+ */
 @Data
 public class RoleMenuDTO {
     @NotNull(message = "角色ID不能为空")

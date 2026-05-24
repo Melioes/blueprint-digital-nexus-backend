@@ -8,7 +8,7 @@ import lombok.Data;
 @Data
 public class Result<T> {
 
-    private Integer code; // 1成功，0失败
+    private Integer code; // 1成功，0失败，401未授权
     private String msg;   // 提示信息
     private T data;       // 数据
 
@@ -50,6 +50,18 @@ public class Result<T> {
     public static Result<Void> error(String msg) {
         Result<Void> result = new Result<>();
         result.code = 0;
+        result.msg = msg;
+        return result;
+    }
+
+
+    // ✅ 新增：支持自定义状态码的失败方法（专门用于认证异常）
+    /**
+     * 失败（自定义状态码）
+     */
+    public static Result<Void> error(Integer code, String msg) {
+        Result<Void> result = new Result<>();
+        result.code = code;
         result.msg = msg;
         return result;
     }

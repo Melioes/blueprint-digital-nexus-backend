@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+/**
+ * 商品分类实体类
+ */
 @Data
 @TableName("wms_category")
 public class ProductCategory {

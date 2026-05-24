@@ -8,6 +8,7 @@ import com.melioes.blueprintdigitalnexus.service.ProductService;
 import com.melioes.blueprintdigitalnexus.vo.ProductVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -64,7 +65,7 @@ public class ProductController {
      */
     @PostMapping("/add")
     @Operation(summary = "新增商品")
-    public Result<Void> addProduct(@RequestBody ProductDTO productDTO) {
+    public Result<Void> addProduct(@RequestBody @Valid ProductDTO productDTO) {
         productService.addProduct(productDTO);
         return Result.success();
     }
