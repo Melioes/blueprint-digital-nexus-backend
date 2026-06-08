@@ -1,10 +1,13 @@
 package com.melioes.blueprintdigitalnexus.dto;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 /**
  * 菜单DTO
  */
 @Data
+@NoArgsConstructor
 public class MenuDTO {
     //编辑需要
     private Long menuId;

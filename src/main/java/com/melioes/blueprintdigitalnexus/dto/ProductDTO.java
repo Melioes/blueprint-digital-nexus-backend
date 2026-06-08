@@ -3,6 +3,7 @@ package com.melioes.blueprintdigitalnexus.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
@@ -11,6 +12,7 @@ import java.math.BigDecimal;
  * 用于接收前端新增/修改商品的请求参数
  */
 @Data
+@NoArgsConstructor
 public class ProductDTO {
     private Long productId;
     private String skuCode; // SKU编码，唯一

@@ -1,7 +1,9 @@
 package com.melioes.blueprintdigitalnexus.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
@@ -9,6 +11,8 @@ import java.time.LocalDateTime;
  * 仓库实体
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @TableName("wms_warehouse")
 public class Warehouse {
 

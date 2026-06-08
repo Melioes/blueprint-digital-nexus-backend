@@ -1,12 +1,16 @@
 package com.melioes.blueprintdigitalnexus.vo;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 /**
  * 菜单VO
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class MenuVO {
 
     private Long menuId;

@@ -2,7 +2,6 @@ package com.melioes.blueprintdigitalnexus.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 /**
@@ -10,7 +9,6 @@ import lombok.NoArgsConstructor;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class ProductCategoryDTO {
     private Long categoryId;   // 修改时需要
     @NotBlank(message = "分类名称不能为空")

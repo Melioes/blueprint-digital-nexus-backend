@@ -3,11 +3,13 @@ package com.melioes.blueprintdigitalnexus.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * 仓库DTO
  */
 @Data
+@NoArgsConstructor
 public class WarehouseDTO {
 
     /**

@@ -19,6 +19,8 @@ import com.melioes.blueprintdigitalnexus.vo.WarehouseVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -65,6 +67,8 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
      * @param query 查询条件
      * @return 仓库列表
      */
+    // 新增缓存注解
+    @Cacheable(value = "WMS:WAREHOUSE", key = "'list'", unless = "#result == null || #result.isEmpty()")
     @Override
     public List<WarehouseVO> getWarehouseList(WarehouseQuery query) {
         LambdaQueryWrapper<Warehouse> wrapper = buildQueryWrapper(query);
@@ -81,6 +85,8 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
      * @param warehouseId 仓库ID
      * @return 仓库详情VO
      */
+    // 新增缓存注解
+    @Cacheable(value = "WMS:WAREHOUSE", key = "#warehouseId", unless = "#result == null")
     @Override
     public WarehouseVO getWarehouseById(Long warehouseId) {
         // 使用通用校验工具：校验ID是否存在并获取实体
@@ -97,6 +103,8 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
      *
      * @param dto 仓库信息DTO
      */
+    // 新增缓存注解
+    @CacheEvict(value = "WMS:WAREHOUSE", allEntries = true)
     @Override
     public void addWarehouse(WarehouseDTO dto) {
         log.info("新增仓库: warehouseName={}", dto.getWarehouseName());
@@ -134,6 +142,8 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
      *
      * @param dto 仓库信息DTO
      */
+    // 新增缓存注解
+    @CacheEvict(value = "WMS:WAREHOUSE", allEntries = true)
     @Override
     public void updateWarehouse(WarehouseDTO dto) {
         log.info("修改仓库: warehouseId={}", dto.getWarehouseId());
@@ -175,6 +185,8 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
      *
      * @param warehouseId 仓库ID
      */
+    // 新增缓存注解
+    @CacheEvict(value = "WMS:WAREHOUSE", allEntries = true)
     @Override
     public void deleteWarehouse(Long warehouseId) {
         log.info("删除仓库: warehouseId={}", warehouseId);

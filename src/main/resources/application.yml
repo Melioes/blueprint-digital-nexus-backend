@@ -28,7 +28,15 @@ spring:
       port: 6379
       password: ${REDIS_PASSWORD}
       database: 1
-      timeout: 200ms # 连接超时时间，超时后立即走降级逻辑
+      timeout: 2000ms # Redis操作超时（覆盖连接+命令），之前200ms太短导致频繁超时 走降级逻辑
+      lettuce:
+        # 连接池配置
+        pool:
+          max-active: 32        # 最大连接数
+          max-idle: 16          # 最大空闲连接
+          min-idle: 8           # 最小空闲连接
+          max-wait: 1000ms      # 从连接池获取连接的超时时间
+        shutdown-timeout: 200ms # 客户端关闭超时
 
 mybatis-plus:
   # mapper XML 文件扫描路径
@@ -49,6 +57,40 @@ mybatis-plus:
     # 数据库字段：role_key
     # Java属性：roleKey
     map-underscore-to-camel-case: true
+    # MyBatis-Plus SQL 日志输出：使用 SLF4J（统一走我们的 logging 配置）
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# 日志配置
+logging:
+  level:
+    # ==========================================
+    # 重点关注：我们需要的日志
+    # ==========================================
+    # MyBatis-Plus SQL 日志（只看这个就行）
+    com.melioes.blueprintdigitalnexus.mapper: debug
+    # Spring Cache 缓存日志
+    org.springframework.cache: debug
+    # Redis 操作日志
+    org.springframework.data.redis: debug
+    # 我们自己的业务日志
+    com.melioes.blueprintdigitalnexus: info
+    # ==========================================
+    # 过滤掉：无关的噪声日志
+    # ==========================================
+    # Spring Security（只看错误）
+    org.springframework.security: error
+    # HikariCP 连接池
+    com.zaxxer.hikari: warn
+    # Tomcat
+    org.apache.tomcat: warn
+    # Spring 框架通用
+    org.springframework: warn
+    # MyBatis 其他
+    org.apache.ibatis: warn
+  pattern:
+    # 日志格式优化：更简洁，带颜色（如果控制台支持）
+    console: "%d{HH:mm:ss} [%thread] %highlight(%-5level) %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
 
 jwt:

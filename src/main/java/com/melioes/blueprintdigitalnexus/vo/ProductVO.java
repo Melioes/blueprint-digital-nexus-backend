@@ -1,6 +1,8 @@
 package com.melioes.blueprintdigitalnexus.vo;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -10,6 +12,8 @@ import java.time.LocalDateTime;
  * 用于返回给前端展示的商品信息
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductVO {
     private Long productId;
     private String skuCode;

@@ -1,11 +1,13 @@
 package com.melioes.blueprintdigitalnexus.dto;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * 角色数据传输对象
  */
 @Data
+@NoArgsConstructor
 public class RoleDTO {
     private Long roleId;
     private String roleName;

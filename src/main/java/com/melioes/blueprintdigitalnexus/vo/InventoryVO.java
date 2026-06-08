@@ -1,8 +1,12 @@
 package com.melioes.blueprintdigitalnexus.vo;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class InventoryVO {
     private Long inventoryId;
     private Long warehouseId;

@@ -3,12 +3,14 @@ package com.melioes.blueprintdigitalnexus.dto;
 import com.melioes.blueprintdigitalnexus.common.constant.auth.AuthMessageConstant;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 /**
  * 员工DTO
  */
 @Data
+@NoArgsConstructor
 public class EmployeeDTO {
 
     private Long userId; // 更新用

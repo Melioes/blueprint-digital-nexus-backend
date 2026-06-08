@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -33,6 +34,9 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+/**
+ * 库存服务实现类
+ */
 public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory> implements InventoryService {
     @Autowired
     private WarehouseService warehouseService;
@@ -134,6 +138,7 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
      * @param dto 调整库存参数
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void adjustInventory(InventoryDTO dto) {
         log.info("[库存调整] 开始执行: warehouseId={}, productId={}, totalStock={}, adjustType={}",
                 dto.getWarehouseId(), dto.getProductId(), dto.getTotalStock(), dto.getAdjustType());

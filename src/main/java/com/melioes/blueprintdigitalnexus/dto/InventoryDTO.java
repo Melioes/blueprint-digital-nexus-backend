@@ -1,11 +1,14 @@
 package com.melioes.blueprintdigitalnexus.dto;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 /**
  * 库存调整DTO
  * 前端调用调整接口时传递的参数
  */
 @Data
+@NoArgsConstructor
 public class InventoryDTO {
 
     /**

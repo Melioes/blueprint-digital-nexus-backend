@@ -1,13 +1,17 @@
 package com.melioes.blueprintdigitalnexus.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 /**
  * 商品分类实体类
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @TableName("wms_category")
 public class ProductCategory {
 

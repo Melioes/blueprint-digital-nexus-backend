@@ -1,6 +1,8 @@
 package com.melioes.blueprintdigitalnexus.vo;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 /**
@@ -8,6 +10,8 @@ import java.time.LocalDateTime;
  * 用于返回给前端展示的角色信息
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class RoleVO {
     private Long roleId;
     private String roleName;

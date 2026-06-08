@@ -21,6 +21,8 @@ import com.melioes.blueprintdigitalnexus.vo.ProductVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -90,6 +92,8 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
      * @param productId 商品ID
      * @return 商品详情VO
      */
+    // 新增缓存注解
+    @Cacheable(value = "WMS:PRODUCT", key = "#productId", unless = "#result == null")
     @Override
     public ProductVO getProductById(Long productId) {
         Product product = getAndCheckProduct(productId);
@@ -102,6 +106,8 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
      * @param query 查询条件
      * @return 商品列表
      */
+    // 新增缓存注解
+    @Cacheable(value = "WMS:PRODUCT", key = "'list'", unless = "#result == null || #result.isEmpty()")
     @Override
     public List<ProductVO> getProductList(ProductQuery query) {
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
@@ -134,6 +140,8 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
      *
      * @param dto 商品信息DTO
      */
+    // 新增缓存注解
+    @CacheEvict(value = "WMS:PRODUCT", allEntries = true)
     @Override
     public void addProduct(ProductDTO dto) {
         log.info("新增商品: productName={}, categoryId={}", dto.getProductName(), dto.getCategoryId());
@@ -195,6 +203,8 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
      *
      * @param id 商品ID
      */
+    // 新增缓存注解
+    @CacheEvict(value = "WMS:PRODUCT", allEntries = true)
     @Override
     public void deleteById(Long id) {
         log.info("删除商品: id={}", id);
@@ -209,6 +219,8 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
      *
      * @param productDto 商品信息DTO
      */
+    // 新增缓存注解
+    @CacheEvict(value = "WMS:PRODUCT", allEntries = true)
     @Override
     public void updateProduct(ProductDTO productDto) {
         log.info("修改商品: productId={}", productDto.getProductId());

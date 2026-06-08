@@ -21,6 +21,8 @@ import com.melioes.blueprintdigitalnexus.vo.ProductCategoryVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +48,11 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
     @Lazy
     private ProductService productService;
 
+    // 新增：注入自身，解决内部调用 @Cacheable 失效的问题
+    @Autowired
+    @Lazy
+    private ProductCategoryService self;
+
     @Autowired
     private RedisIdGenerator redisIdGenerator;
 
@@ -57,6 +64,8 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
      *
      * @return 分类树形数据
      */
+    // 新增缓存注解
+    @Cacheable(value = "WMS:CATEGORY", key = "'list'", unless = "#result == null || #result.isEmpty()")
     @Override
     public List<ProductCategoryVO> getCategoryTree() {
         List<ProductCategory> allList = this.list();
@@ -81,6 +90,8 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
      * @param productCategoryDTO 分类信息
      */
     @Transactional(rollbackFor = Exception.class)
+    // 新增缓存注解
+    @CacheEvict(value = "WMS:CATEGORY", allEntries = true)
     @Override
     public void addCategory(ProductCategoryDTO productCategoryDTO) {
         log.info("新增分类: categoryName={}, parentId={}", productCategoryDTO.getCategoryName(),
@@ -94,7 +105,7 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
         }
 
         if (productCategoryDTO.getParentId() > 0) {
-            this.getAndCheckCategory(productCategoryDTO.getParentId());
+            self.getAndCheckCategory(productCategoryDTO.getParentId());
         }
 
         // 校验同一层级下名称唯一性
@@ -154,11 +165,13 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
      * @param id 分类ID
      */
     @Transactional(rollbackFor = Exception.class)
+    // 新增缓存注解
+    @CacheEvict(value = "WMS:CATEGORY", allEntries = true)
     @Override
     public void deleteCategory(Long id) {
         log.info("删除分类: id={}", id);
 
-        this.getAndCheckCategory(id);
+        self.getAndCheckCategory(id);
 
         Long count = this.lambdaQuery().eq(ProductCategory::getParentId, id).count();
         if (count > 0) {
@@ -182,11 +195,13 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
      * @param dto 分类信息
      */
     @Transactional(rollbackFor = Exception.class)
+    // 新增缓存注解
+    @CacheEvict(value = "WMS:CATEGORY", allEntries = true)
     @Override
     public void updateCategory(ProductCategoryDTO dto) {
         log.info("修改分类: categoryId={}", dto.getCategoryId());
 
-        ProductCategory entity = this.getAndCheckCategory(dto.getCategoryId());
+        ProductCategory entity = self.getAndCheckCategory(dto.getCategoryId());
 
         if (dto.getParentId() == null) {
             dto.setParentId(TOP_PARENT_ID);
@@ -197,7 +212,7 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
         }
 
         if (dto.getParentId() > 0) {
-            this.getAndCheckCategory(dto.getParentId());
+            self.getAndCheckCategory(dto.getParentId());
         }
 
         // 校验同一层级下名称唯一性
@@ -289,6 +304,8 @@ public class ProductCategoryServiceImpl extends ServiceImpl<ProductCategoryMappe
      * @param id 分类ID
      * @return 分类实体
      */
+    // 新增缓存注解
+    @Cacheable(value = "WMS:CATEGORY", key = "#id", unless = "#result == null")
     @Override
     public ProductCategory getAndCheckCategory(Long id) {
         ProductCategory category = this.getById(id);

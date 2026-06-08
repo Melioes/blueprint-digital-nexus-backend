@@ -1,12 +1,17 @@
 package com.melioes.blueprintdigitalnexus.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 /**
  * 系统用户实体类
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @TableName("sys_user")
 public class SysUser {
     @TableId(type = IdType.AUTO)

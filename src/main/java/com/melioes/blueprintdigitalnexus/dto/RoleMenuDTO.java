@@ -2,12 +2,14 @@ package com.melioes.blueprintdigitalnexus.dto;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 /**
  * 角色菜单数据传输对象
  */
 @Data
+@NoArgsConstructor
 public class RoleMenuDTO {
     @NotNull(message = "角色ID不能为空")
     private Long roleId;  // 角色 ID
