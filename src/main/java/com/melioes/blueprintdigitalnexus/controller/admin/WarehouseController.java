@@ -1,6 +1,8 @@
 package com.melioes.blueprintdigitalnexus.controller.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
+import com.alibaba.fastjson.JSON;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.WarehouseDTO;
 import com.melioes.blueprintdigitalnexus.query.WarehouseQuery;
@@ -9,6 +11,7 @@ import com.melioes.blueprintdigitalnexus.vo.WarehouseVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +20,7 @@ import java.util.List;
 /**
  * 仓库管理控制器
  */
+@Slf4j
 @RestController
 @RequestMapping("/admin/warehouse")
 @Tag(name = "仓库管理", description = "仓库管理接口")
@@ -56,8 +60,10 @@ public class WarehouseController {
      * 新增仓库
      */
     @PostMapping
+    @OperLog(module = "仓库管理", operation = "新增仓库")
     @Operation(summary = "新增仓库", description = "创建新仓库")
     public Result<Void> add(@RequestBody @Valid WarehouseDTO dto) {
+        log.info("[接口] 新增仓库：\n{}", JSON.toJSONString(dto, true));
         warehouseService.addWarehouse(dto);
         return Result.success();
     }
@@ -66,8 +72,10 @@ public class WarehouseController {
      * 修改仓库
      */
     @PutMapping
+    @OperLog(module = "仓库管理", operation = "修改仓库")
     @Operation(summary = "修改仓库", description = "更新仓库信息")
     public Result<Void> update(@RequestBody WarehouseDTO dto) {
+        log.info("[接口] 修改仓库：\n{}", JSON.toJSONString(dto, true));
         warehouseService.updateWarehouse(dto);
         return Result.success();
     }
@@ -76,6 +84,7 @@ public class WarehouseController {
      * 删除仓库
      */
     @DeleteMapping("/{warehouseId}")
+    @OperLog(module = "仓库管理", operation = "删除仓库")
     @Operation(summary = "删除仓库", description = "根据ID删除仓库")
     public Result<Void> delete(@PathVariable Long warehouseId) {
         warehouseService.deleteWarehouse(warehouseId);

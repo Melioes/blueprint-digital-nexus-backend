@@ -3,6 +3,8 @@ package com.melioes.blueprintdigitalnexus.controller.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.melioes.blueprintdigitalnexus.common.constant.auth.annotation.RequiresPermission;
+import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
+import com.alibaba.fastjson.JSON;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.ProductCategoryDTO;
 import com.melioes.blueprintdigitalnexus.query.ProductCategoryQuery;
@@ -11,11 +13,13 @@ import com.melioes.blueprintdigitalnexus.vo.ProductCategoryVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/admin/category")
 @Tag(name = "商品分类管理", description = "商品分类管理相关接口")
@@ -43,9 +47,11 @@ public class ProductCategoryController {
      * @return 操作结果
      */
     @PostMapping("/add")
+    @OperLog(module = "商品分类", operation = "新增分类")
     @Operation(summary = "新增分类")
     //@RequiresPermission("product:category:add")
     public Result<Void> add(@RequestBody @Valid ProductCategoryDTO categoryDto) {
+        log.info("[接口] 新增分类：\n{}", JSON.toJSONString(categoryDto, true));
         categoryService.addCategory(categoryDto);
         return Result.success();
     }
@@ -57,9 +63,11 @@ public class ProductCategoryController {
      * @return 操作结果
      */
     @PutMapping("/update")
+    @OperLog(module = "商品分类", operation = "修改分类")
     @Operation(summary = "修改分类")
     //@RequiresPermission("product:category:edit")
     public Result<Void> update(@RequestBody ProductCategoryDTO categoryDto) {
+        log.info("[接口] 修改分类：\n{}", JSON.toJSONString(categoryDto, true));
         categoryService.updateCategory(categoryDto);
         return Result.success();
     }
@@ -71,6 +79,7 @@ public class ProductCategoryController {
      * @return 操作结果
      */
     @DeleteMapping("/{id}")
+    @OperLog(module = "商品分类", operation = "删除分类")
     @Operation(summary = "删除分类")
     //@RequiresPermission("product:category:delete")
     public Result<Void> delete(@PathVariable Long id) {

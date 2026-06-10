@@ -1,6 +1,8 @@
 package com.melioes.blueprintdigitalnexus.controller.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
+import com.alibaba.fastjson.JSON;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.ProductDTO;
 import com.melioes.blueprintdigitalnexus.query.ProductQuery;
@@ -9,11 +11,13 @@ import com.melioes.blueprintdigitalnexus.vo.ProductVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/admin/product")
 @Tag(name = "商品管理", description = "商品管理相关接口")
@@ -64,8 +68,10 @@ public class ProductController {
      * @return 操作结果
      */
     @PostMapping("/add")
+    @OperLog(module = "商品管理", operation = "新增商品")
     @Operation(summary = "新增商品")
     public Result<Void> addProduct(@RequestBody @Valid ProductDTO productDTO) {
+        log.info("[接口] 新增商品：\n{}", JSON.toJSONString(productDTO, true));
         productService.addProduct(productDTO);
         return Result.success();
     }
@@ -77,8 +83,10 @@ public class ProductController {
      * @return 操作结果
      */
     @PutMapping("/update")
+    @OperLog(module = "商品管理", operation = "修改商品")
     @Operation(summary = "修改商品")
     public Result<Void> updateProduct(@RequestBody ProductDTO productDto) {
+        log.info("[接口] 修改商品：\n{}", JSON.toJSONString(productDto, true));
         productService.updateProduct(productDto);
         return Result.success();
     }
@@ -90,6 +98,7 @@ public class ProductController {
      * @return 操作结果
      */
     @DeleteMapping("/{id}")
+    @OperLog(module = "商品管理", operation = "删除商品")
     @Operation(summary = "删除商品")
     public Result<Void> delete(@PathVariable Long id) {
         productService.deleteById(id);

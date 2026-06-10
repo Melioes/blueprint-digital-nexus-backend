@@ -12,11 +12,13 @@ import com.melioes.blueprintdigitalnexus.common.utils.BizValidateUtil;
 import com.melioes.blueprintdigitalnexus.dto.InventoryDTO;
 import com.melioes.blueprintdigitalnexus.entity.Inventory;
 import com.melioes.blueprintdigitalnexus.entity.Product;
+import com.melioes.blueprintdigitalnexus.entity.StockLog;
 import com.melioes.blueprintdigitalnexus.entity.Warehouse;
 import com.melioes.blueprintdigitalnexus.mapper.InventoryMapper;
 import com.melioes.blueprintdigitalnexus.query.InventoryQuery;
 import com.melioes.blueprintdigitalnexus.service.InventoryService;
 import com.melioes.blueprintdigitalnexus.service.ProductService;
+import com.melioes.blueprintdigitalnexus.service.StockLogService;
 import com.melioes.blueprintdigitalnexus.service.WarehouseService;
 import com.melioes.blueprintdigitalnexus.vo.InventoryVO;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +44,8 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
     private WarehouseService warehouseService;
     @Autowired
     private ProductService productService;
+    @Autowired
+    private StockLogService stockLogService;
 
     /**
      * 分页查询库存列表（包含商品与仓库明细）
@@ -207,7 +211,11 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
 
             // 更新库存（乐观锁自动生效）
             inventory.setTotalStock(newStock);
+
             this.updateById(inventory);
+            // 记录库存变动日志
+            saveStockLog(dto, newStock);
+
 
             log.info("[库存调整] 更新库存成功: inventoryId={}, oldStock={}, newStock={}",
                     inventory.getInventoryId(), oldStock, newStock);
@@ -485,5 +493,36 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
         wrapper.eq(query.getProductId() != null, Inventory::getProductId, query.getProductId());
 
         return wrapper;
+    }
+
+    /**
+     * 记录库存变动日志
+     *
+     * @param dto      库存调整参数
+     * @param newStock 调整后的库存值
+     */
+    private void saveStockLog(InventoryDTO dto, Integer newStock) {
+        StockLog log = new StockLog();
+        log.setWarehouseId(dto.getWarehouseId());
+        log.setProductId(dto.getProductId());
+
+        // 计算变动数量：正数=入库增加，负数=出库减少
+        if (InventoryConstant.ADJUST_TYPE_IN.equals(dto.getAdjustType())) {
+            log.setChangeQty(dto.getTotalStock());    // 入库：正数
+            log.setType("IN");
+        } else if (InventoryConstant.ADJUST_TYPE_OUT.equals(dto.getAdjustType())) {
+            log.setChangeQty(-dto.getTotalStock());   // 出库：负数
+            log.setType("OUT");
+        } else {
+            // 覆盖模式：变动量 = 新值 - 旧值（这里简化为记录新值）
+            log.setChangeQty(newStock);
+            log.setType("ADJUST");
+        }
+
+        // bizId 和 orderNo 通过 dto 传入（手动调整时为空）
+        log.setBizId(dto.getBizId());
+        log.setOrderNo(dto.getOrderNo());
+
+        stockLogService.save(log);
     }
 }

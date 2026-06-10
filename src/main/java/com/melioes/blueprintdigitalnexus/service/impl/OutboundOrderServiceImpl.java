@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.melioes.blueprintdigitalnexus.common.constant.DateConstant;
-import com.melioes.blueprintdigitalnexus.common.constant.wms.InboundConstant;
 import com.melioes.blueprintdigitalnexus.common.constant.wms.InventoryConstant;
 import com.melioes.blueprintdigitalnexus.common.constant.wms.OutboundConstant;
 import com.melioes.blueprintdigitalnexus.common.constant.wms.WarehouseConstant;
@@ -17,7 +16,10 @@ import com.melioes.blueprintdigitalnexus.common.utils.RedisIdGenerator;
 import com.melioes.blueprintdigitalnexus.dto.InventoryDTO;
 import com.melioes.blueprintdigitalnexus.dto.OutboundDetailDTO;
 import com.melioes.blueprintdigitalnexus.dto.OutboundOrderDTO;
-import com.melioes.blueprintdigitalnexus.entity.*;
+import com.melioes.blueprintdigitalnexus.entity.OutboundDetail;
+import com.melioes.blueprintdigitalnexus.entity.OutboundOrder;
+import com.melioes.blueprintdigitalnexus.entity.Product;
+import com.melioes.blueprintdigitalnexus.entity.Warehouse;
 import com.melioes.blueprintdigitalnexus.mapper.OutboundOrderMapper;
 import com.melioes.blueprintdigitalnexus.query.OutboundOrderQuery;
 import com.melioes.blueprintdigitalnexus.service.*;
@@ -233,8 +235,10 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         for (OutboundDetail detail : detailList) {
             // 调用库存模块 循环扣减每个商品的库存
             inventoryService.adjustInventory(
+
                     buildInventoryAdjustDTO(order, detail, InventoryConstant.ADJUST_TYPE_OUT, reason));
         }
+
 
         // 5.更新状态为已确认
         order.setStatus(OutboundConstant.STATUS_CONFIRMED);
@@ -320,7 +324,7 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
      */
     @Override
     public String getBusinessPrefix() {
-        return InboundConstant.ORDER_NO_PREFIX;
+        return OutboundConstant.ORDER_NO_PREFIX;
     }
 
     /**
@@ -564,6 +568,9 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
         dto.setTotalStock(detail.getQuantity());
         dto.setAdjustType(adjustType);
         dto.setAdjustReason(reason);
+        dto.setBizId(order.getOutboundOrderId());
+        // 出库单号
+        dto.setOrderNo(order.getOrderNo());
         return dto;
     }
 

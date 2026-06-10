@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.melioes.blueprintdigitalnexus.common.constant.auth.annotation.RequiresPermission;
 import com.melioes.blueprintdigitalnexus.common.constant.auth.annotation.RequiresRole;
 import com.melioes.blueprintdigitalnexus.common.constant.rbac.RoleConstant;
+import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
+import com.alibaba.fastjson.JSON;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.RoleDTO;
 import com.melioes.blueprintdigitalnexus.query.RoleQuery;
@@ -35,11 +37,12 @@ public class SysRoleController {
      * 需要权限：system:role:add
      */
     @PostMapping
+    @OperLog(module = "角色管理", operation = "新增角色")
     @Operation(summary = "新增角色", description = "创建新角色")
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:role:add")
     public Result<Void> add(@RequestBody RoleDTO role) {
-        log.info("新增角色请求: {}", role);
+        log.info("[接口] 新增角色：\n{}", JSON.toJSONString(role, true));
         sysRoleService.addRole(role);
         return Result.success();
     }
@@ -50,6 +53,7 @@ public class SysRoleController {
      * 需要权限：system:role:delete
      */
     @DeleteMapping("/{id}")
+    @OperLog(module = "角色管理", operation = "删除角色")
     @Operation(summary = "删除角色", description = "根据ID删除角色")
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:role:delete")
@@ -65,11 +69,12 @@ public class SysRoleController {
      * 需要权限：system:role:edit
      */
     @PutMapping
+    @OperLog(module = "角色管理", operation = "修改角色")
     @Operation(summary = "修改角色", description = "更新角色信息")
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:role:edit")
     public Result<Void> update(@RequestBody RoleDTO role) {
-        log.info("修改角色请求: {}", role);
+        log.info("[接口] 修改角色：\n{}", JSON.toJSONString(role, true));
         sysRoleService.updateRole(role);
         return Result.success();
     }

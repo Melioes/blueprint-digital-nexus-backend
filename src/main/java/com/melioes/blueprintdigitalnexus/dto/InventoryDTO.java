@@ -35,4 +35,16 @@ public class InventoryDTO {
      * 调整原因 (可选)
      */
     private String adjustReason;
+
+    /**
+     * 业务单据ID（入库单ID 或 出库单ID）
+     * 用于库存变动日志追溯
+     */
+    private Long bizId;
+
+    /**
+     * 单据编号（入库单号 或 出库单号）
+     * 用于库存变动日志快照
+     */
+    private String orderNo;
 }

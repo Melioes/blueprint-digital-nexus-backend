@@ -6,6 +6,8 @@ import com.melioes.blueprintdigitalnexus.common.constant.auth.annotation.Require
 import com.melioes.blueprintdigitalnexus.common.constant.rbac.RoleConstant;
 import com.melioes.blueprintdigitalnexus.common.context.UserContext;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
+import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
+import com.alibaba.fastjson.JSON;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.MenuDTO;
 import com.melioes.blueprintdigitalnexus.dto.RoleMenuDTO;
@@ -42,10 +44,12 @@ public class SysMenuController {
      * 需要权限：system:menu:add
      */
     @PostMapping
+    @OperLog(module = "菜单管理", operation = "新增菜单")
     @Operation(summary = "新增菜单", description = "创建新菜单")
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:menu:add")
     public Result<Void> add(@RequestBody MenuDTO dto) {
+        log.info("[接口] 新增菜单：\n{}", JSON.toJSONString(dto, true));
         menuService.addMenu(dto);
         return Result.success();
     }
@@ -69,6 +73,7 @@ public class SysMenuController {
      * 需要权限：system:role:assign
      */
     @PostMapping("/bindMenu")
+    @OperLog(module = "菜单管理", operation = "分配菜单权限")
     @Operation(summary = "绑定角色菜单", description = "给角色绑定菜单权限")
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:role:assign")
@@ -85,6 +90,7 @@ public class SysMenuController {
      * 需要权限：system:role:assign
      */
     @DeleteMapping("/unbindMenu")
+    @OperLog(module = "菜单管理", operation = "解绑菜单权限")
     @Operation(summary = "解绑角色菜单", description = "移除角色绑定的菜单")
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:role:assign")
@@ -126,10 +132,12 @@ public class SysMenuController {
      * 需要权限：system:menu:edit
      */
     @PutMapping
+    @OperLog(module = "菜单管理", operation = "修改菜单")
     @Operation(summary = "修改菜单", description = "更新菜单信息")
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:menu:edit")
     public Result<Void> update(@RequestBody MenuDTO dto) {
+        log.info("[接口] 修改菜单：\n{}", JSON.toJSONString(dto, true));
         menuService.updateMenu(dto);
         return Result.success();
     }
@@ -140,6 +148,7 @@ public class SysMenuController {
      * 需要权限：system:menu:delete
      */
     @DeleteMapping("/{menuId}")
+    @OperLog(module = "菜单管理", operation = "删除菜单")
     @Operation(summary = "删除菜单", description = "根据ID删除菜单")
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:menu:delete")
