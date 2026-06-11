@@ -8,35 +8,33 @@ import com.melioes.blueprintdigitalnexus.service.SysUserService;
 import com.melioes.blueprintdigitalnexus.vo.LoginVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 @Slf4j
 @RestController
 @RequestMapping("/admin/auth")
 @Tag(name = "认证管理", description = "登录注册接口")
 public class AuthController {
+
     @Autowired
     private SysUserService sysUserService;
+
     /**
      * 登录
      * @param dto 登录参数
-     * @return 登录结果
+     * @return 登录结果（token + 用户信息）
      */
     @PostMapping("/login")
     @Operation(summary = "用户登录", description = "用户使用用户名和密码登录系统")
-    public Result<LoginVO> login(@RequestBody LoginDTO dto) {
-//        String token = sysUserService.login(dto);
-//        log.info("用户登录成功，username={}", dto.getUsername());
-//        return Result.success(token, AuthMessageConstant.LOGIN_SUCCESS);
-
+    public Result<LoginVO> login(@RequestBody @Valid LoginDTO dto) {
         LoginVO vo = sysUserService.login(dto);
-
-        log.info("用户登录成功，username={}", dto);
-
+        log.info("用户登录成功，username={}", dto.getUsername());
         return Result.success(vo, AuthMessageConstant.LOGIN_SUCCESS);
     }
 
@@ -47,11 +45,10 @@ public class AuthController {
      */
     @PostMapping("/register")
     @Operation(summary = "用户注册", description = "新用户注册账号")
-    public Result<Void> register(@RequestBody RegisterDTO dto) {
+    public Result<Void> register(@RequestBody @Valid RegisterDTO dto) {
         log.info("收到注册请求 username={}", dto.getUsername());
         sysUserService.register(dto);
         log.info("用户注册成功，username={}", dto.getUsername());
         return Result.success(null, AuthMessageConstant.REGISTER_SUCCESS);
     }
-
 }

@@ -2,7 +2,7 @@ package com.melioes.blueprintdigitalnexus.controller.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
-import com.alibaba.fastjson.JSON;
+import com.melioes.blueprintdigitalnexus.common.utils.JsonLogUtil;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.EmployeeDTO;
 import com.melioes.blueprintdigitalnexus.query.UserQuery;
@@ -54,7 +54,7 @@ public class SysUserController {
 //    @RequiresRole({RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN})
 
     public Result<Void> add(@RequestBody EmployeeDTO dto) {
-        log.info("[接口] 新增用户：\n{}", JSON.toJSONString(dto, true));
+        log.info("[接口] 新增用户：\n{}", JsonLogUtil.toPrettyJson(dto));
         sysUserService.addUser(dto);
         return Result.success();
     }
@@ -86,7 +86,7 @@ public class SysUserController {
 //    @RequiresRole({RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN})
 //    @RequiresPermission("system:user:edit")
     public Result<Void> update(@RequestBody EmployeeDTO dto) {
-        log.info("[接口] 修改用户：\n{}", JSON.toJSONString(dto, true));
+        log.info("[接口] 修改用户：\n{}", JsonLogUtil.toPrettyJson(dto));
         sysUserService.updateUser(dto);
         return Result.success();
     }

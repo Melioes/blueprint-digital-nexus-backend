@@ -6,10 +6,13 @@
 <mapper namespace="com.melioes.blueprintdigitalnexus.mapper.SysUserMapper">
 
     <select id="selectRoleKeyList" resultType="java.lang.String">
-        SELECT r.role_key
+        SELECT DISTINCT r.role_key
         FROM sys_user_role ur
                  INNER JOIN sys_role r ON ur.role_id = r.role_id
         WHERE ur.user_id = #{userId}
+          -- 核心修复：过滤已删除/禁用的角色
+          AND r.is_deleted = 0
+          AND r.status = 1
     </select>
 
 </mapper>

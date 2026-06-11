@@ -2,6 +2,7 @@ package com.melioes.blueprintdigitalnexus.common.exception;
 
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import io.jsonwebtoken.ExpiredJwtException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.jdbc.BadSqlGrammarException;
+import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingPathVariableException;
@@ -16,10 +18,13 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.Optional;
+
 /**
  * 全局异常处理器
  * 统一处理 SQL异常 / 运行时异常 / 业务异常
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -55,7 +60,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(BadSqlGrammarException.class)
     public Result<?> handleSqlGrammarException(BadSqlGrammarException e) {
-        e.printStackTrace();
+        log.error("[异常] SQL语法错误", e);
         return Result.error("SQL语法错误，请检查字段或表结构");
     }
 
@@ -64,7 +69,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public Result<?> handleDataIntegrityViolationException(DataIntegrityViolationException e) {
-        e.printStackTrace();
+        log.error("[异常] 数据完整性冲突", e);
         return Result.error("数据冲突或约束错误（如重复数据或外键限制）");
     }
     // 处理唯一索引冲突
@@ -116,16 +121,28 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(TypeMismatchException.class)
     public Result<?> handleTypeMismatch(TypeMismatchException e) {
-        return Result.error("参数类型错误，请输入正确的数据格式" + e.getMessage());
+        return Result.error("参数类型错误，请输入正确的数据格式: " + e.getMessage());
     }
 
+    /**
+     * GET 请求参数绑定失败（如 page=abc 期望是 Integer）
+     * BindException 是 TypeMismatchException 的上层包装，必须单独处理
+     */
+    @ExceptionHandler(BindException.class)
+    public Result<?> handleBindException(BindException e) {
+        log.warn("[异常] GET参数绑定失败", e);
+        String msg = Optional.ofNullable(e.getBindingResult().getFieldError())
+                .map(fe -> String.format("参数【%s】格式错误，请输入正确的数字", fe.getField()))
+                .orElse("参数绑定失败，请检查请求格式");
+        return Result.error(msg);
+    }
 
     /**
      * 兜底异常（所有未捕获异常）
      */
     @ExceptionHandler(Exception.class)
     public Result<?> handleException(Exception e) {
-        e.printStackTrace();
+        log.error("[异常] 未知错误", e);
         return Result.error("系统开小差啦，请联系管理员");
     }
 }

@@ -5,7 +5,7 @@ import com.melioes.blueprintdigitalnexus.common.constant.auth.annotation.Require
 import com.melioes.blueprintdigitalnexus.common.constant.auth.annotation.RequiresRole;
 import com.melioes.blueprintdigitalnexus.common.constant.rbac.RoleConstant;
 import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
-import com.alibaba.fastjson.JSON;
+import com.melioes.blueprintdigitalnexus.common.utils.JsonLogUtil;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.RoleDTO;
 import com.melioes.blueprintdigitalnexus.query.RoleQuery;
@@ -42,7 +42,7 @@ public class SysRoleController {
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:role:add")
     public Result<Void> add(@RequestBody RoleDTO role) {
-        log.info("[接口] 新增角色：\n{}", JSON.toJSONString(role, true));
+        log.info("[接口] 新增角色：\n{}", JsonLogUtil.toPrettyJson(role));
         sysRoleService.addRole(role);
         return Result.success();
     }
@@ -74,7 +74,7 @@ public class SysRoleController {
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:role:edit")
     public Result<Void> update(@RequestBody RoleDTO role) {
-        log.info("[接口] 修改角色：\n{}", JSON.toJSONString(role, true));
+        log.info("[接口] 修改角色：\n{}", JsonLogUtil.toPrettyJson(role));
         sysRoleService.updateRole(role);
         return Result.success();
     }

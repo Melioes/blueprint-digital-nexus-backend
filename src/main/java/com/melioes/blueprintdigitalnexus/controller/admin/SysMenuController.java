@@ -7,7 +7,7 @@ import com.melioes.blueprintdigitalnexus.common.constant.rbac.RoleConstant;
 import com.melioes.blueprintdigitalnexus.common.context.UserContext;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
 import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
-import com.alibaba.fastjson.JSON;
+import com.melioes.blueprintdigitalnexus.common.utils.JsonLogUtil;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.MenuDTO;
 import com.melioes.blueprintdigitalnexus.dto.RoleMenuDTO;
@@ -49,7 +49,7 @@ public class SysMenuController {
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:menu:add")
     public Result<Void> add(@RequestBody MenuDTO dto) {
-        log.info("[接口] 新增菜单：\n{}", JSON.toJSONString(dto, true));
+        log.info("[接口] 新增菜单：\n{}", JsonLogUtil.toPrettyJson(dto));
         menuService.addMenu(dto);
         return Result.success();
     }
@@ -137,7 +137,7 @@ public class SysMenuController {
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
     @RequiresPermission("system:menu:edit")
     public Result<Void> update(@RequestBody MenuDTO dto) {
-        log.info("[接口] 修改菜单：\n{}", JSON.toJSONString(dto, true));
+        log.info("[接口] 修改菜单：\n{}", JsonLogUtil.toPrettyJson(dto));
         menuService.updateMenu(dto);
         return Result.success();
     }

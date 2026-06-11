@@ -106,12 +106,14 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
-        <!-- fastjson     -->
+
+        <!-- fastjson — 已迁移到 Jackson (JsonLogUtil)，暂时注释
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>1.2.83</version>
         </dependency>
+        -->
 
 
 

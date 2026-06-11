@@ -2,7 +2,7 @@ package com.melioes.blueprintdigitalnexus.controller.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
-import com.alibaba.fastjson.JSON;
+import com.melioes.blueprintdigitalnexus.common.utils.JsonLogUtil;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.WarehouseDTO;
 import com.melioes.blueprintdigitalnexus.query.WarehouseQuery;
@@ -63,7 +63,7 @@ public class WarehouseController {
     @OperLog(module = "仓库管理", operation = "新增仓库")
     @Operation(summary = "新增仓库", description = "创建新仓库")
     public Result<Void> add(@RequestBody @Valid WarehouseDTO dto) {
-        log.info("[接口] 新增仓库：\n{}", JSON.toJSONString(dto, true));
+        log.info("[接口] 新增仓库：\n{}", JsonLogUtil.toPrettyJson(dto));
         warehouseService.addWarehouse(dto);
         return Result.success();
     }
@@ -75,7 +75,7 @@ public class WarehouseController {
     @OperLog(module = "仓库管理", operation = "修改仓库")
     @Operation(summary = "修改仓库", description = "更新仓库信息")
     public Result<Void> update(@RequestBody WarehouseDTO dto) {
-        log.info("[接口] 修改仓库：\n{}", JSON.toJSONString(dto, true));
+        log.info("[接口] 修改仓库：\n{}", JsonLogUtil.toPrettyJson(dto));
         warehouseService.updateWarehouse(dto);
         return Result.success();
     }

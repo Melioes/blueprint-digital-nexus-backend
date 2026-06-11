@@ -111,6 +111,7 @@ public class SysUserServiceImpl
     }
 
     @Override
+    @Transactional
     public void register(RegisterDTO dto) {
         // 1. 用户是否存在
         SysUser exist = getUserByUsername(dto.getUsername());
@@ -246,6 +247,7 @@ public class SysUserServiceImpl
         return user;
     }
 
+    /**
     /**
      * 根据用户名查询用户
      * 复用：登录 / 注册检查

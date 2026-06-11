@@ -118,17 +118,38 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
     }
 
     // ✅ 统一返回JSON格式响应，使用你标准的Result格式
+//    private void writeJsonResponse(HttpServletResponse response, Integer code, String message) throws IOException {
+//        response.setContentType("application/json;charset=UTF-8");
+//        response.setStatus(HttpServletResponse.SC_OK); // HTTP状态码统一返回200，业务状态码用Result里的code
+//
+//        // 使用你统一的Result格式
+//        Result<Void> result = Result.error(code, message);
+//        String json = OBJECT_MAPPER.writeValueAsString(result);
+//
+//        response.getWriter().write(json);
+//        response.getWriter().flush();
+//    }
+
     private void writeJsonResponse(HttpServletResponse response, Integer code, String message) throws IOException {
         response.setContentType("application/json;charset=UTF-8");
-        response.setStatus(HttpServletResponse.SC_OK); // HTTP状态码统一返回200，业务状态码用Result里的code
+        response.setCharacterEncoding("UTF-8");
 
-        // 使用你统一的Result格式
+        int httpStatus = switch (code) {
+            case 400 -> HttpServletResponse.SC_BAD_REQUEST;
+            case 401 -> HttpServletResponse.SC_UNAUTHORIZED;
+            case 403 -> HttpServletResponse.SC_FORBIDDEN;
+            case 500 -> HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+            default  -> HttpServletResponse.SC_OK;
+        };
+
+        response.setStatus(httpStatus);
         Result<Void> result = Result.error(code, message);
         String json = OBJECT_MAPPER.writeValueAsString(result);
 
         response.getWriter().write(json);
         response.getWriter().flush();
     }
+
 
     @Override
     public void afterCompletion(HttpServletRequest request,

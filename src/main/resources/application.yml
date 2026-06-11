@@ -106,7 +106,10 @@ knife4j:
   production: false
   # 分组配置
   basic:
-    enable: false  # 是否开启认证（生产环境建议开启）
+#    enable: false  # 是否开启认证（生产环境建议开启）
+    enable: true  # 是否开启认证（生产环境建议开启）
+    username: admin      # ← 文档登录用户名
+    password: admin123   # ← 文档登录密码
 
 # HTTP 端口配置（用于调试）
 http:

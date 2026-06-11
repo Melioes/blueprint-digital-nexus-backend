@@ -4,7 +4,7 @@ package com.melioes.blueprintdigitalnexus.controller.admin;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.melioes.blueprintdigitalnexus.common.constant.auth.annotation.RequiresPermission;
 import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
-import com.alibaba.fastjson.JSON;
+import com.melioes.blueprintdigitalnexus.common.utils.JsonLogUtil;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.ProductCategoryDTO;
 import com.melioes.blueprintdigitalnexus.query.ProductCategoryQuery;
@@ -51,7 +51,7 @@ public class ProductCategoryController {
     @Operation(summary = "新增分类")
     //@RequiresPermission("product:category:add")
     public Result<Void> add(@RequestBody @Valid ProductCategoryDTO categoryDto) {
-        log.info("[接口] 新增分类：\n{}", JSON.toJSONString(categoryDto, true));
+        log.info("[接口] 新增分类：\n{}", JsonLogUtil.toPrettyJson(categoryDto));
         categoryService.addCategory(categoryDto);
         return Result.success();
     }
@@ -67,7 +67,7 @@ public class ProductCategoryController {
     @Operation(summary = "修改分类")
     //@RequiresPermission("product:category:edit")
     public Result<Void> update(@RequestBody ProductCategoryDTO categoryDto) {
-        log.info("[接口] 修改分类：\n{}", JSON.toJSONString(categoryDto, true));
+        log.info("[接口] 修改分类：\n{}", JsonLogUtil.toPrettyJson(categoryDto));
         categoryService.updateCategory(categoryDto);
         return Result.success();
     }

@@ -2,7 +2,7 @@ package com.melioes.blueprintdigitalnexus.controller.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
-import com.alibaba.fastjson.JSON;
+import com.melioes.blueprintdigitalnexus.common.utils.JsonLogUtil;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.ProductDTO;
 import com.melioes.blueprintdigitalnexus.query.ProductQuery;
@@ -71,7 +71,7 @@ public class ProductController {
     @OperLog(module = "商品管理", operation = "新增商品")
     @Operation(summary = "新增商品")
     public Result<Void> addProduct(@RequestBody @Valid ProductDTO productDTO) {
-        log.info("[接口] 新增商品：\n{}", JSON.toJSONString(productDTO, true));
+        log.info("[接口] 新增商品：\n{}", JsonLogUtil.toPrettyJson(productDTO));
         productService.addProduct(productDTO);
         return Result.success();
     }
@@ -86,7 +86,7 @@ public class ProductController {
     @OperLog(module = "商品管理", operation = "修改商品")
     @Operation(summary = "修改商品")
     public Result<Void> updateProduct(@RequestBody ProductDTO productDto) {
-        log.info("[接口] 修改商品：\n{}", JSON.toJSONString(productDto, true));
+        log.info("[接口] 修改商品：\n{}", JsonLogUtil.toPrettyJson(productDto));
         productService.updateProduct(productDto);
         return Result.success();
     }

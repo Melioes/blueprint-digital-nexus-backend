@@ -2,7 +2,7 @@ package com.melioes.blueprintdigitalnexus.controller.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
-import com.alibaba.fastjson.JSON;
+import com.melioes.blueprintdigitalnexus.common.utils.JsonLogUtil;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.InventoryDTO;
 import com.melioes.blueprintdigitalnexus.query.InventoryQuery;
@@ -34,7 +34,7 @@ public class InventoryController {
     @OperLog(module = "库存管理", operation = "新增库存")
     @Operation(summary = "新增库存", description = "新增库存接口")
     public Result<Void> add(@RequestBody InventoryDTO dto) {
-        log.info("[接口] 新增库存：\n{}", JSON.toJSONString(dto, true));
+        log.info("[接口] 新增库存：\n{}", JsonLogUtil.toPrettyJson(dto));
         inventoryService.addInventory(dto);
         return Result.success();
     }
@@ -89,7 +89,7 @@ public class InventoryController {
     @OperLog(module = "库存管理", operation = "调整库存")
     @Operation(summary = "调整库存", description = "调整库存，支持入库、出库、覆盖三种模式")
     public Result<Void> adjust(@RequestBody InventoryDTO dto) {
-        log.info("[接口] 调整库存：\n{}", JSON.toJSONString(dto, true));
+        log.info("[接口] 调整库存：\n{}", JsonLogUtil.toPrettyJson(dto));
         inventoryService.adjustInventory(dto);
         return Result.success();
     }
