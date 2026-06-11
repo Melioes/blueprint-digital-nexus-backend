@@ -1,6 +1,7 @@
 package com.melioes.blueprintdigitalnexus.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.melioes.blueprintdigitalnexus.common.constant.auth.AuthMessageConstant;
 import com.melioes.blueprintdigitalnexus.common.context.UserContext;
 import com.melioes.blueprintdigitalnexus.common.properties.JwtProperties;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
@@ -82,9 +83,10 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
         } catch (ExpiredJwtException e) {
             // ✅ 专门处理token过期异常，只打印一行警告日志，不打印堆栈
             log.warn("[Admin] token已过期: {}", e.getMessage());
-            writeJsonResponse(response, 401, "登录已过期，请重新登录");
+            writeJsonResponse(response, 401, AuthMessageConstant.TOKEN_INVALID);
             return false;
         } catch (JwtException e) {
+
             // ✅ 处理其他所有JWT异常（签名错误、格式错误、篡改等）
             log.warn("[Admin] token无效: {}", e.getMessage());
             writeJsonResponse(response, 401, "无效的登录凭证，请重新登录");

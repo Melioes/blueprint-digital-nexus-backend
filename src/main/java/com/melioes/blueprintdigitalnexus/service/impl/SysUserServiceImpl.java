@@ -113,8 +113,12 @@ public class SysUserServiceImpl
     @Override
     @Transactional
     public void register(RegisterDTO dto) {
-        // 1. 用户是否存在
+        // 1. 用户名合法性校验
+        validateUsername(dto.getUsername());
+
+        // 2. 用户是否存在
         SysUser exist = getUserByUsername(dto.getUsername());
+
         if (exist != null) {
             throw new BusinessException(AuthMessageConstant.USER_ALREADY_EXISTS);
         }
@@ -264,6 +268,16 @@ public class SysUserServiceImpl
     }
 
     /**
+     * 校验用户名合法性（注册场景）
+     * 拦截保留字和非法值
+     */
+    private void validateUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new BusinessException(AuthMessageConstant.USERNAME_EMPTY);
+        }
+    }
+
+    /**
      * 构建用户对象（注册场景）
      */
     private SysUser buildSysUser(RegisterDTO dto) {
@@ -273,9 +287,10 @@ public class SysUserServiceImpl
         user.setUsername(dto.getUsername());
 
         // 密码处理
-        String rawPassword = StringUtils.hasText(dto.getPassword())
-                ? dto.getPassword()
-                : PasswordConstant.DEFAULT_PASSWORD;
+//        String rawPassword = StringUtils.hasText(dto.getPassword())
+//                ? dto.getPassword()
+//                : PasswordConstant.DEFAULT_PASSWORD;
+        String rawPassword = dto.getPassword();
         user.setPassword(passwordEncoder.encode(rawPassword));
 
         user.setRealName(dto.getRealName());
