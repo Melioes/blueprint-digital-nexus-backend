@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.melioes.blueprintdigitalnexus.common.constant.DateConstant;
 import com.melioes.blueprintdigitalnexus.common.constant.wms.ProductConstant;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
+import com.melioes.blueprintdigitalnexus.common.utils.FileUploadUtil;
 import com.melioes.blueprintdigitalnexus.common.service.SequenceSyncService;
 import com.melioes.blueprintdigitalnexus.common.utils.CodeGenerator;
 import com.melioes.blueprintdigitalnexus.common.utils.RedisIdGenerator;
@@ -146,6 +147,11 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
     public void addProduct(ProductDTO dto) {
         log.info("新增商品: productName={}, categoryId={}", dto.getProductName(), dto.getCategoryId());
 
+        // 校验图片URL格式（如果传了的话）
+        if (dto.getImageUrl() != null && !dto.getImageUrl().isEmpty()) {
+            FileUploadUtil.validateUrl(dto.getImageUrl());
+        }
+
         // 校验分类是否存在
         if (dto.getCategoryId() != null) {
             productCategoryService.getAndCheckCategory(dto.getCategoryId());
@@ -224,6 +230,11 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product>
     @Override
     public void updateProduct(ProductDTO productDto) {
         log.info("修改商品: productId={}", productDto.getProductId());
+
+        // 校验图片URL格式（如果传了的话）
+        if (productDto.getImageUrl() != null && !productDto.getImageUrl().isEmpty()) {
+            FileUploadUtil.validateUrl(productDto.getImageUrl());
+        }
 
         Product product = getAndCheckProduct(productDto.getProductId());
 

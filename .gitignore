@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# 包含敏感配置（AccessKey等），不要提交
+src/main/resources/application.yml

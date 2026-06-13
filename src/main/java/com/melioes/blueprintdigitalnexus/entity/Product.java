@@ -31,6 +31,7 @@ public class Product {
     private Integer publishStatus; // 0下架，1上架
     private String remark;      // 备注
 
+
     @TableLogic
     private Integer isDeleted;  // 逻辑删除
 
@@ -39,4 +40,10 @@ public class Product {
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
+    /**
+     * 商品图片路径
+     */
+    private String imageUrl;
+
+
 }

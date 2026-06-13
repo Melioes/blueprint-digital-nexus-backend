@@ -28,4 +28,5 @@ public class ProductDTO {
     private BigDecimal volume; // 体积(m³)
     private Integer publishStatus; // 0下架，1上架
     private String remark; // 备注
+    private String imageUrl; // 商品图片路径
 }

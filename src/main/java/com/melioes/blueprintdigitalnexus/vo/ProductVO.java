@@ -29,6 +29,7 @@ public class ProductVO {
     private Integer publishStatus;
     private String publishStatusName; // 状态名称（已上架/已下架）
     private String remark;      // 备注
+    private String imageUrl;      // 商品图片路径
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

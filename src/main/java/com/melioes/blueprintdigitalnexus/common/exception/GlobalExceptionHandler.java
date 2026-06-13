@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Optional;
@@ -135,6 +136,16 @@ public class GlobalExceptionHandler {
                 .map(fe -> String.format("参数【%s】格式错误，请输入正确的数字", fe.getField()))
                 .orElse("参数绑定失败，请检查请求格式");
         return Result.error(msg);
+    }
+
+    /**
+     * 文件上传大小超出限制
+     * Spring 的 multipart.max-file-size 在 Tomcat 层拦截，比我们的 FileUploadUtil.validate() 更早触发
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public Result<?> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        log.warn("[异常] 文件上传大小超出限制: {}", e.getMessage());
+        return Result.error("文件大小超出限制，最大允许 5MB");
     }
 
     /**

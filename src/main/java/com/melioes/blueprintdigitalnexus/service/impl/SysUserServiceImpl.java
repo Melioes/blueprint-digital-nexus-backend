@@ -10,6 +10,7 @@ import com.melioes.blueprintdigitalnexus.common.constant.rbac.RoleConstant;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
 import com.melioes.blueprintdigitalnexus.common.properties.JwtProperties;
 import com.melioes.blueprintdigitalnexus.common.utils.JwtUtil;
+import com.melioes.blueprintdigitalnexus.common.utils.FileUploadUtil;
 import com.melioes.blueprintdigitalnexus.common.utils.RoleUtils;
 import com.melioes.blueprintdigitalnexus.convert.UserConvert;
 import com.melioes.blueprintdigitalnexus.dto.EmployeeDTO;
@@ -172,13 +173,18 @@ public class SysUserServiceImpl
             throw new BusinessException(AuthMessageConstant.USER_ALREADY_EXISTS);
         }
 
-        // 2. 构建用户对象
+        // 2. 校验头像URL格式（如果传了的话）
+        if (dto.getAvatar() != null && !dto.getAvatar().isEmpty()) {
+            FileUploadUtil.validateUrl(dto.getAvatar());
+        }
+
+        // 3. 构建用户对象
         SysUser user = buildSysUser(dto);
 
-        // 3. 保存用户
+        // 4. 保存用户
         this.save(user);
 
-        // 4. 角色绑定（修改：只在没有指定角色时绑定默认角色）
+        // 5. 角色绑定（修改：只在没有指定角色时绑定默认角色）
         List<Long> roleIds = dto.getRoleIds();
         if (roleIds != null && !roleIds.isEmpty()) {
             // 绑定指定角色
@@ -200,6 +206,11 @@ public class SysUserServiceImpl
 
         if (dto.getUserId() == null) {
             throw new BusinessException(AuthMessageConstant.ID_EMPTY);
+        }
+
+        // 校验头像URL格式（如果传了的话）
+        if (dto.getAvatar() != null && !dto.getAvatar().isEmpty()) {
+            FileUploadUtil.validateUrl(dto.getAvatar());
         }
 
         SysUser user = getUserById(dto.getUserId());
