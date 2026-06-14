@@ -1,6 +1,6 @@
 # BlueprintDigitalNexus - API 测试指南
 
-> 更新日期：2026-06-11
+> 更新日期：2026-06-14
 > 测试工具：APIFox / Postman
 
 ---
@@ -44,7 +44,7 @@ POST /admin/auth/login
   "code": 1,
   "msg": "登录成功",
   "data": {
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
+    "token": "eyJhbG...NiJ9...",
     "username": "test_super",
     "realName": "测试管理员"
   }
@@ -146,9 +146,90 @@ POST /admin/auth/register
 |------|------|------|
 | GET | `/page` | 分页查询 |
 | GET | `/{id}` | 详情 |
+| GET | `/permissions` | **当前用户权限（角色+权限+菜单树）** |
 | POST | | 新增用户 |
 | PUT | | 修改用户 |
 | DELETE | `/{id}` | 删除用户 |
+
+#### GET /admin/user/permissions（新增）
+
+**说明：** 获取当前登录用户的完整权限信息，包括角色列表、权限标识列表、用户专属菜单树。
+
+**请求：**
+```
+GET /admin/user/permissions
+Header: token: {{token}}
+```
+
+**响应示例：**
+```json
+{
+  "code": 1,
+  "msg": "操作成功",
+  "data": {
+    "roles": ["SUPER_ADMIN", "ADMIN"],
+    "permissions": [
+      "system:user:view",
+      "system:user:add",
+      "system:user:edit",
+      "system:user:delete",
+      "system:role:view",
+      "system:role:add",
+      "system:role:edit",
+      "system:role:delete",
+      "system:menu:view",
+      "system:menu:add",
+      "system:menu:edit",
+      "system:menu:delete",
+      "warehouse:view",
+      "warehouse:add",
+      "warehouse:edit",
+      "warehouse:delete",
+      "product:view",
+      "product:add",
+      "product:edit",
+      "product:delete",
+      "inventory:view",
+      "inventory:add",
+      "inventory:edit",
+      "inbound:view",
+      "inbound:edit",
+      "outbound:view",
+      "outbound:edit",
+      "dashboard:view",
+      "stocklog:view",
+      "operlog:view"
+    ],
+    "menus": [
+      {
+        "menuId": 1,
+        "menuName": "系统管理",
+        "path": "/system",
+        "icon": "Setting",
+        "children": [
+          {
+            "menuId": 2,
+            "menuName": "用户管理",
+            "path": "/system/user",
+            "icon": "User",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**测试场景：**
+
+| 场景 | 预期结果 |
+|------|---------|
+| 正常用户（有角色） | 返回 roles + permissions + 菜单树 |
+| 多角色用户 | 角色和权限合并去重 |
+| 用户无角色 | roles=[], permissions=[], menus=[] |
+| 角色被禁用（status=0） | 该角色的权限和菜单被过滤 |
+| 连续调用两次 | 第二次走 Redis 缓存，无 SQL 查询 |
 
 ### 3.8 角色管理 `/admin/role`
 
@@ -172,8 +253,8 @@ POST /admin/auth/register
 | POST | | 新增菜单 |
 | PUT | | 修改菜单 |
 | DELETE | `/{menuId}` | 删除菜单 |
-| POST | `/bindMenu` | 绑定角色菜单 |
-| DELETE | `/unbindMenu` | 解绑角色菜单 |
+| POST | `/bindMenu` | 绑定角色菜单（权限：system:role:edit） |
+| DELETE | `/unbindMenu` | 解绑角色菜单（权限：system:role:edit） |
 
 ### 3.10 操作日志 `/admin/oper-log`（如有查询接口）
 
@@ -191,6 +272,13 @@ POST /admin/auth/register
 |------|------|------|
 | GET | `/` | 5个卡片 + 最近单据（Redis缓存10秒） |
 | GET | `/trend?startDate=&endDate=` | 趋势图数据（默认近7天，最大90天） |
+
+### 3.13 文件上传 `/admin/file`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/upload` | 上传文件（multipart/form-data） |
+| DELETE | `/delete` | 删除文件 |
 
 ---
 
@@ -230,7 +318,52 @@ POST /admin/auth/register
 
 ---
 
-## 五、常见问题
+## 五、RBAC 权限缓存测试
+
+### 5.1 测试步骤
+
+1. **登录获取 Token**
+   ```
+   POST /admin/auth/login
+   ```
+
+2. **首次查询权限（走数据库）**
+   ```
+   GET /admin/user/permissions
+   Header: token: {{token}}
+   ```
+   记录返回的 roles、permissions、menus 数量。
+
+3. **再次查询权限（走 Redis 缓存）**
+   ```
+   GET /admin/user/permissions
+   Header: token: {{token}}
+   ```
+   响应应与第一次完全相同，但后端日志无 SQL 查询。
+
+4. **修改角色菜单（清除缓存）**
+   ```
+   POST /admin/menu/bindMenu
+   Body: { "roleId": 1, "menuIds": [1, 2, 3] }
+   ```
+
+5. **再次查询权限（缓存已清除，重新查数据库）**
+   ```
+   GET /admin/user/permissions
+   ```
+
+### 5.2 验证点
+
+| 验证点 | 方法 |
+|--------|------|
+| 缓存命中 | 后端日志无 SQL，响应时间更快 |
+| 缓存清除 | bindMenu 后查询返回最新数据 |
+| 多角色合并 | 给用户分配多个角色，权限列表合并 |
+| 禁用角色过滤 | 禁用某角色（status=0），其权限和菜单不再返回 |
+
+---
+
+## 六、常见问题
 
 ### Q1：请求返回 401
 
@@ -247,3 +380,11 @@ POST /admin/auth/register
 ### Q4：Redis 连接超时
 
 检查 Redis 是否启动，`timeout` 配置是否合理（当前 2000ms）。
+
+### Q5：权限查询返回空
+
+可能原因：
+1. 用户没有分配角色
+2. 角色被禁用（status=0）
+3. 角色没有绑定菜单
+4. 缓存未更新（尝试修改角色菜单触发缓存清除）

@@ -3,11 +3,18 @@ package com.melioes.blueprintdigitalnexus.controller.admin;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.melioes.blueprintdigitalnexus.common.annotation.OperLog;
 import com.melioes.blueprintdigitalnexus.common.utils.JsonLogUtil;
+import com.melioes.blueprintdigitalnexus.common.context.UserContext;
 import com.melioes.blueprintdigitalnexus.common.result.Result;
 import com.melioes.blueprintdigitalnexus.dto.EmployeeDTO;
 import com.melioes.blueprintdigitalnexus.query.UserQuery;
+import com.melioes.blueprintdigitalnexus.service.PermissionService;
+import com.melioes.blueprintdigitalnexus.service.SysMenuService;
 import com.melioes.blueprintdigitalnexus.service.SysUserService;
 import com.melioes.blueprintdigitalnexus.vo.EmployeeVO;
+import com.melioes.blueprintdigitalnexus.vo.MenuVO;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +29,12 @@ public class SysUserController {
 
     @Autowired
     private SysUserService sysUserService;
+
+    @Autowired
+    private PermissionService permissionService;
+
+    @Autowired
+    private SysMenuService sysMenuService;
 
     /**
      * 用户分页查询
@@ -103,5 +116,40 @@ public class SysUserController {
     public Result<EmployeeVO> detail(@PathVariable Long id) {
         log.info("查询用户详情, id={}", id);
         return Result.success(sysUserService.getUserDetail(id));
+    }
+
+    /**
+     * 获取当前登录用户的权限信息（供前端渲染菜单和按钮）
+     *
+     * 前端登录后调用此接口，拿到：
+     * - roles：角色列表（如 ["SUPER_ADMIN"]）
+     * - permissions：权限标识列表（如 ["dashboard:view", "product:list:view"]）
+     * - menus：菜单树（用于渲染侧边栏）
+     *
+     * 管理员修改权限后，用户下次调用此接口自动拿到最新数据（Redis缓存2小时，改权限时主动清除）
+     */
+    @GetMapping("/permissions")
+    @Operation(summary = "获取当前用户权限", description = "返回角色、权限标识、菜单树，供前端渲染侧边栏和控制按钮显隐")
+    public Result<Map<String, Object>> getPermissions() {
+        Long userId = UserContext.get();
+        log.info("[接口] 获取当前用户权限: userId={}", userId);
+
+        // 1. 查角色列表
+        List<String> roles = permissionService.getUserRoles(userId);
+
+        // 2. 查权限标识列表
+        List<String> permissions = permissionService.getUserPermissions(userId);
+
+        // 3. 查菜单树（只返回用户有权限的菜单，用于前端渲染侧边栏）
+        List<MenuVO> menus = sysMenuService.getUserMenuTree(userId);
+
+        // 4. 组装返回
+        Map<String, Object> data = new HashMap<>();
+        data.put("userId", userId);
+        data.put("roles", roles);
+        data.put("permissions", permissions);
+        data.put("menus", menus);
+
+        return Result.success(data);
     }
 }

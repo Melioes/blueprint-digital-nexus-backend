@@ -65,15 +65,16 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
             // 2. 获取用户信息
             // =========================
             Long userId = Long.valueOf(claims.get("userId").toString());
-
-            // 一个用户可能有多个角色
-            List<String> roles = getRolesFromClaims(claims);
             UserContext.set(userId);
+
+            // 角色和权限都从数据库实时查（不再从 JWT 读）
+            // 管理员改了权限后，用户下次请求自动生效，不需要重新登录
+            List<String> roles = permissionService.getUserRoles(userId);
             UserContext.setRoles(roles);
 
-            // 加权限
             List<String> permissions = permissionService.getUserPermissions(userId);
             UserContext.setPermissions(permissions);
+
             log.info("[Admin] 认证成功 userId={}, roles={}", userId, roles);
 
             // 4. 这里只做"登录校验"，不做权限判断
@@ -97,26 +98,6 @@ public class AdminJwtInterceptor implements HandlerInterceptor {
             writeJsonResponse(response, 500, "系统认证失败，请联系管理员");
             return false;
         }
-    }
-
-    /// 获取角色
-    private List<String> getRolesFromClaims(Claims claims) {
-        Object roleKeysObj = claims.get("roleKeys");
-
-        if (roleKeysObj == null) {
-            return Collections.emptyList();  // 返回空列表
-        }
-
-        if (!(roleKeysObj instanceof List<?>)) {
-            log.warn("roleKeys 类型错误");
-            return Collections.emptyList();
-        }
-
-        List<?> rawRoles = (List<?>) roleKeysObj;
-        return rawRoles.stream()
-                .filter(item -> item instanceof String)
-                .map(item -> (String) item)
-                .collect(Collectors.toList());
     }
 
     // ✅ 统一返回JSON格式响应，使用你标准的Result格式

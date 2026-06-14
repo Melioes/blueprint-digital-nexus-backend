@@ -40,8 +40,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
 
         // 1. 分页对象
         Page<SysRole> page = new Page<>(
-                query.getPage(),
-                query.getSize()
+                query.fetchPage(),
+                query.fetchSize()
         );
 
         // 2. 查询条件

@@ -24,6 +24,7 @@ import com.melioes.blueprintdigitalnexus.mapper.SysUserMapper;
 import com.melioes.blueprintdigitalnexus.mapper.SysUserRoleMapper;
 import com.melioes.blueprintdigitalnexus.query.UserQuery;
 import com.melioes.blueprintdigitalnexus.service.SysUserService;
+import com.melioes.blueprintdigitalnexus.service.PermissionService;
 import com.melioes.blueprintdigitalnexus.vo.EmployeeInfoVO;
 import com.melioes.blueprintdigitalnexus.vo.EmployeeVO;
 import com.melioes.blueprintdigitalnexus.vo.LoginVO;
@@ -59,6 +60,8 @@ public class SysUserServiceImpl
     private PasswordEncoder passwordEncoder;
     @Autowired
     private UserConvert userConvert;
+    @Autowired
+    private PermissionService permissionService;
 
     @Override
     public LoginVO login(LoginDTO dto) {
@@ -79,14 +82,12 @@ public class SysUserServiceImpl
             throw new BusinessException(AuthMessageConstant.PASSWORD_ERROR);
         }
 
-        // 2. 查角色 sys_role 表
-        List<String> roleKeys = userMapper.selectRoleKeyList(user.getUserId());
-
-        // 3. JWT claims
+        // 2. JWT claims（只存身份信息，不存权限）
+        // 权限数据从数据库/Redis实时查询，确保改权限后立即生效
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getUserId());
         claims.put("username", user.getUsername());
-        claims.put("roleKeys", roleKeys);
+        // 注意：不再存 roleKeys，避免 JWT 里的旧权限和数据库不一致
 
         String token = JwtUtil.generateToken(
                 jwtProperties.getSecretKey(),
@@ -96,6 +97,9 @@ public class SysUserServiceImpl
         // =========================
         // 组装返回 VO
         // =========================
+        // 角色信息从数据库实时查（不再从 JWT 读，确保改权限后立即生效）
+        List<String> roleKeys = userMapper.selectRoleKeyList(user.getUserId());
+
         EmployeeInfoVO userInfo = new EmployeeInfoVO();
         userInfo.setUserId(user.getUserId());
         userInfo.setUsername(user.getUsername());
@@ -136,10 +140,10 @@ public class SysUserServiceImpl
     @Override
     public IPage<EmployeeVO> getUserPage(UserQuery query) {
 
-        // 1. 分页对象（统一从 PageQuery 来）
+        // 1. 分页对象（统一从 PageQuery 来，fetchPage/fetchSize 会处理 null）
         Page<SysUser> page = new Page<>(
-                query.getPage(),
-                query.getSize());
+                query.fetchPage(),
+                query.fetchSize());
 
         // 2. 查询条件
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
@@ -202,6 +206,7 @@ public class SysUserServiceImpl
      * 修改用户
      */
     @Override
+    @Transactional
     public void updateUser(EmployeeDTO dto) {
 
         if (dto.getUserId() == null) {
@@ -230,6 +235,23 @@ public class SysUserServiceImpl
         }
 
         this.updateById(user);
+
+        // 角色更新（如果传了 roleIds）
+        // roleIds != null → 覆盖式更新（先删旧的，再绑新的）
+        // roleIds == null → 不修改角色（保持原有）
+        List<Long> roleIds = dto.getRoleIds();
+        if (roleIds != null) {
+            // 1. 删除该用户的所有旧角色绑定
+            userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
+                    .eq(SysUserRole::getUserId, user.getUserId()));
+            // 2. 绑定新角色
+            for (Long roleId : roleIds) {
+                bindRole(user.getUserId(), roleId);
+            }
+            log.info("用户角色已更新: userId={}, roleIds={}", user.getUserId(), roleIds);
+            // 角色变更后，清除该用户的权限缓存，确保下次请求拿到最新权限
+            permissionService.evictUserRolesCache(user.getUserId());
+        }
     }
 
     /**

@@ -6,9 +6,11 @@ import com.melioes.blueprintdigitalnexus.common.constant.rbac.RoleConstant;
 import com.melioes.blueprintdigitalnexus.common.exception.BusinessException;
 import com.melioes.blueprintdigitalnexus.dto.MenuDTO;
 import com.melioes.blueprintdigitalnexus.entity.SysMenu;
+import com.melioes.blueprintdigitalnexus.entity.SysRole;
 import com.melioes.blueprintdigitalnexus.entity.SysRoleMenu;
 import com.melioes.blueprintdigitalnexus.entity.SysUserRole;
 import com.melioes.blueprintdigitalnexus.mapper.SysMenuMapper;
+import com.melioes.blueprintdigitalnexus.mapper.SysRoleMapper;
 import com.melioes.blueprintdigitalnexus.mapper.SysRoleMenuMapper;
 import com.melioes.blueprintdigitalnexus.mapper.SysUserRoleMapper;
 import com.melioes.blueprintdigitalnexus.service.SysMenuService;
@@ -19,6 +21,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +39,8 @@ public class SysMenuServiceImpl
 
     @Autowired
     private SysUserRoleMapper sysUserRoleMapper;
+    @Autowired
+    private SysRoleMapper sysRoleMapper;
     @Autowired
     private SysRoleMenuMapper sysRoleMenuMapper;
 
@@ -156,7 +161,17 @@ public class SysMenuServiceImpl
     }
 
     /**
-     * 获取用户菜单树
+     * 获取用户菜单树（根据用户角色过滤，只返回用户有权限的菜单）
+     *
+     * 查询逻辑：
+     * 1. 通过 userId 查 sys_user_role 拿到 role_id 列表
+     * 2. 过滤掉禁用的角色（status != 1）
+     * 3. 通过 role_id 查 sys_role_menu 拿到 menu_id 列表
+     * 4. 通过 menu_id 查 sys_menu 拿到菜单详情
+     * 5. 构建树形结构返回
+     *
+     * @param userId 用户ID
+     * @return 菜单树（只包含用户有权限的菜单）
      */
     @Override
     public List<MenuVO> getUserMenuTree(Long userId) {
@@ -166,6 +181,7 @@ public class SysMenuServiceImpl
             throw new BusinessException(RoleConstant.USER_ID_INVALID);
         }
 
+        // 1. 查用户绑定的所有角色ID（包括禁用的）
         List<Long> roleIds = sysUserRoleMapper.selectList(
                 new LambdaQueryWrapper<SysUserRole>()
                         .eq(SysUserRole::getUserId, userId))
@@ -176,6 +192,19 @@ public class SysMenuServiceImpl
             return Collections.emptyList();
         }
 
+        // 2. 过滤掉禁用的角色（status != 1）
+        // 例如：用户绑定了 [SUPER_ADMIN(启用), TEMP_TEST(禁用)]，只保留 SUPER_ADMIN
+        roleIds = sysRoleMapper.selectBatchIds(roleIds).stream()
+                .filter(r -> r.getStatus() == 1)
+                .map(SysRole::getRoleId)
+                .toList();
+
+        if (roleIds.isEmpty()) {
+            log.warn("用户 {} 所有角色均已禁用", userId);
+            return Collections.emptyList();
+        }
+
+        // 3. 通过启用的角色ID，查出所有绑定的菜单ID（去重）
         List<Long> menuIds = sysRoleMenuMapper.selectList(
                 new LambdaQueryWrapper<SysRoleMenu>()
                         .in(SysRoleMenu::getRoleId, roleIds))
@@ -188,6 +217,7 @@ public class SysMenuServiceImpl
             return Collections.emptyList();
         }
 
+        // 4. 查菜单详情（只查启用的菜单）
         List<SysMenu> menuList = this.lambdaQuery()
                 .in(SysMenu::getMenuId, menuIds)
                 .eq(SysMenu::getStatus, 1)
@@ -228,12 +258,21 @@ public class SysMenuServiceImpl
         // 查询条件
         LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
         // 菜单名称、路径、权限标识
-        wrapper.and(w -> w
-                .eq(SysMenu::getMenuName, dto.getMenuName())
-                .or()
-                .eq(SysMenu::getPath, dto.getPath())
-                .or()
-                .eq(SysMenu::getPermission, dto.getPermission()));
+//        wrapper.and(w -> w
+//                .eq(SysMenu::getMenuName, dto.getMenuName())
+//                .or()
+//                .eq(SysMenu::getPath, dto.getPath())
+//                .or()
+//                .eq(SysMenu::getPermission, dto.getPermission()));
+        wrapper.and(w -> {
+            w.eq(SysMenu::getMenuName, dto.getMenuName());
+            if (StringUtils.hasText(dto.getPath())) {
+                w.or().eq(SysMenu::getPath, dto.getPath());
+            }
+            if (StringUtils.hasText(dto.getPermission())) {
+                w.or().eq(SysMenu::getPermission, dto.getPermission());
+            }
+        });
         // 更新操作
         if (isUpdate) {
             wrapper.ne(SysMenu::getMenuId, dto.getMenuId());

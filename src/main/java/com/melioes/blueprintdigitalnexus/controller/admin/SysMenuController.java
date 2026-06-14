@@ -70,13 +70,13 @@ public class SysMenuController {
     /**
      * 绑定角色和菜单
      * 需要角色：SUPER_ADMIN, ADMIN
-     * 需要权限：system:role:assign
+     * 需要权限：system:role:edit
      */
     @PostMapping("/bindMenu")
     @OperLog(module = "菜单管理", operation = "分配菜单权限")
     @Operation(summary = "绑定角色菜单", description = "给角色绑定菜单权限")
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
-    @RequiresPermission("system:role:assign")
+    @RequiresPermission("system:role:edit")
     public Result<Void> bindMenu(@RequestBody @Valid RoleMenuDTO dto) {
         log.info("绑定角色与菜单请求: roleId={}, menuIds={}", dto.getRoleId(), dto.getMenuIds());
         sysRoleMenuService.bindRoleMenus(dto.getRoleId(), dto.getMenuIds());
@@ -87,13 +87,13 @@ public class SysMenuController {
     /**
      * 删除角色和菜单的绑定
      * 需要角色：SUPER_ADMIN, ADMIN
-     * 需要权限：system:role:assign
+     * 需要权限：system:role:edit
      */
     @DeleteMapping("/unbindMenu")
     @OperLog(module = "菜单管理", operation = "解绑菜单权限")
     @Operation(summary = "解绑角色菜单", description = "移除角色绑定的菜单")
     @RequiresRole({ RoleConstant.SUPER_ADMIN, RoleConstant.ADMIN })
-    @RequiresPermission("system:role:assign")
+    @RequiresPermission("system:role:edit")
     public Result<Void> unbindMenu(@RequestBody RoleMenuDTO dto) {
         log.info("删除角色与菜单绑定请求: roleId={}, menuIds={}", dto.getRoleId(), dto.getMenuIds());
         sysRoleMenuService.unbindRoleMenus(dto.getRoleId(), dto.getMenuIds());

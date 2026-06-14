@@ -9,6 +9,7 @@ import com.melioes.blueprintdigitalnexus.entity.SysRoleMenu;
 import com.melioes.blueprintdigitalnexus.mapper.SysMenuMapper;
 import com.melioes.blueprintdigitalnexus.mapper.SysRoleMenuMapper;
 import com.melioes.blueprintdigitalnexus.service.SysRoleMenuService;
+import com.melioes.blueprintdigitalnexus.service.PermissionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,8 @@ public class SysRoleMenuServiceImpl extends ServiceImpl<SysRoleMenuMapper, SysRo
     private SysRoleMenuMapper sysRoleMenuMapper;
     @Autowired
     private SysMenuMapper sysMenuMapper;
+    @Autowired
+    private PermissionService permissionService;
 
     /**
      * 绑定角色和菜单（覆盖模式）
@@ -90,6 +93,8 @@ public class SysRoleMenuServiceImpl extends ServiceImpl<SysRoleMenuMapper, SysRo
 
         this.saveBatch(list);
         log.info("角色菜单绑定成功 roleId={}, menuCount={}", roleId, list.size());
+        // 菜单权限变更后，清除所有绑定了该角色的用户的权限缓存
+        permissionService.evictCacheByRoleId(roleId);
     }
 
     /**
@@ -137,6 +142,8 @@ public class SysRoleMenuServiceImpl extends ServiceImpl<SysRoleMenuMapper, SysRo
                 .in(SysRoleMenu::getMenuId, existingMenuIds));
 
         log.info("角色菜单解绑成功 roleId={}, menuCount={}", roleId, existingMenuIds.size());
+        // 菜单权限变更后，清除所有绑定了该角色的用户的权限缓存
+        permissionService.evictCacheByRoleId(roleId);
     }
 
     /**

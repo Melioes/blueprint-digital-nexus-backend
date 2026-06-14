@@ -337,12 +337,14 @@ WMS:模块英文大写名称
 
 ### 示例
 
-| 业务模块 | 缓存 Value | 单号生成 Key |
-|----------|------------|--------------|
-| 仓库 | WMS:WAREHOUSE | WMS:CODE:WAREHOUSE |
-| 商品 | WMS:PRODUCT | WMS:CODE:PRODUCT |
-| 分类 | WMS:CATEGORY | WMS:CODE:CATEGORY |
-| 角色 | WMS:ROLE | WMS:CODE:ROLE |
+| 业务模块 | 缓存 Value | 单号生成 Key | 状态 |
+|----------|------------|--------------|------|
+| 仓库 | WMS:WAREHOUSE | WMS:CODE:WAREHOUSE | ✅ 已实现 |
+| 商品 | WMS:PRODUCT | WMS:CODE:PRODUCT | ✅ 已实现 |
+| 分类 | WMS:CATEGORY | WMS:CODE:CATEGORY | ✅ 已实现 |
+| 权限 | WMS:PERMISSION | — | ✅ 已实现 |
+| 首页看板 | WMS:DASHBOARD | — | ✅ 已实现 |
+| 角色 | WMS:ROLE | WMS:CODE:ROLE | ⏳ 待实现 |
 
 ---
 
@@ -407,12 +409,14 @@ key = "'list'"
 
 ### 推荐时间
 
-| 模块类型 | TTL |
-|-----------|------|
-| 仓库/角色/字典/部门 | 30天 |
-| 商品/商品分类 | 7天 |
-| 通用配置 | 1天 |
-| 禁止缓存模块 | 不配置 |
+| 模块类型 | TTL | 备注 |
+|-----------|------|------|
+| 仓库/角色/字典/部门 | 30天 | 静态基础数据 |
+| 商品/商品分类 | 7天 | 偶尔变动 |
+| 权限（WMS:PERMISSION） | 2小时 | 改权限时主动清除 |
+| 首页看板（WMS:DASHBOARD） | 10秒 | 30秒轮询够用 |
+| 通用配置 | 1天 | — |
+| 禁止缓存模块 | 不配置 | — |
 
 ---
 
@@ -860,3 +864,88 @@ public void updateWarehouse(WarehouseDTO dto) {
 ✅ 数据一致性可控  
 ✅ 改造风险最小化  
 ✅ 支持快速回滚与逐步验收
+
+---
+
+# 九、已实现的缓存模块
+
+> 更新日期：2026-06-14
+
+## 9.1 业务数据缓存（WMS:WAREHOUSE / WMS:PRODUCT / WMS:CATEGORY）
+
+- 适用：仓库列表、商品详情、分类列表等静态基础数据
+- TTL：见 CacheConfig 配置
+- 写操作通过 `@CacheEvict(allEntries=true)` 清除
+
+## 9.2 权限缓存（WMS:PERMISSION）
+
+### 设计思路
+
+- JWT 只存 userId + username，不存 roleKeys
+- 每次请求从数据库/Redis 实时查角色和权限
+- 管理员改权限后，用户下次请求自动生效，不需要重新登录
+
+### 缓存结构
+
+| 缓存 Key | 内容 | TTL |
+|-----------|------|-----|
+| `WMS:PERMISSION::roles:{userId}` | 用户角色列表 | 2小时 |
+| `WMS:PERMISSION::perms:{userId}` | 用户权限标识列表 | 2小时 |
+
+### 触发清除的场景
+
+| 操作 | 触发方法 | 清除哪些缓存 |
+|------|----------|-------------|
+| 管理员修改用户角色 | `SysUserServiceImpl.updateUser()` | 该用户的 roles + perms |
+| 管理员绑定角色菜单 | `SysRoleMenuServiceImpl.bindRoleMenus()` | 该角色绑定的所有用户的缓存 |
+| 管理员解绑角色菜单 | `SysRoleMenuServiceImpl.unbindRoleMenus()` | 同上 |
+
+### Spring AOP 自调用问题
+
+同一个类内 A 方法调用 B 方法，B 上的 `@CacheEvict` 不会生效（因为绕过了 Spring 代理）。
+
+解决方案：
+
+```java
+// 注入自身代理（@Lazy 避免循环依赖）
+@Lazy
+@Autowired
+private PermissionService self;
+
+// 通过代理调用，确保 @CacheEvict 生效
+self.evictUserPermissionsCache(userId);
+```
+
+### 实际代码
+
+```java
+// 查询：带缓存
+@Cacheable(value = "WMS:PERMISSION", key = "'roles:' + #userId")
+public List<String> getUserRoles(Long userId) { ... }
+
+// 清除：改角色时触发
+@CacheEvict(value = "WMS:PERMISSION", key = "'roles:' + #userId")
+public void evictUserRolesCache(Long userId) {
+    self.evictUserPermissionsCache(userId);  // 通过代理调用
+}
+```
+
+### 测试结果
+
+| 场景 | 预期 | 结果 |
+|------|------|------|
+| 连续调两次 /permissions | 第二次走缓存无 SQL | ✅ |
+| 修改用户角色后查权限 | 立即拿到新角色 | ✅ |
+| 绑定角色菜单后查权限 | 立即拿到新权限 | ✅ |
+| 清空用户角色 | roles=[], permissions=[], menus=[] | ✅ |
+| 禁用角色（status=0） | 该角色被过滤 | ✅ |
+| 多角色合并 | 两个角色权限取并集 | ✅ |
+
+## 9.3 首页看板缓存（WMS:DASHBOARD）
+
+| 缓存 Key | 内容 | TTL |
+|-----------|------|-----|
+| `WMS:DASHBOARD::*` | 看板统计数据 | 10秒 |
+
+- 前端 30 秒轮询一次，10 秒 TTL 足够
+- 仅用 TTL 过期，不用 `@CacheEvict`（看板数据允许短暂延迟）
