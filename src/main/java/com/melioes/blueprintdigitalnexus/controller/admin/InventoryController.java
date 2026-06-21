@@ -47,7 +47,7 @@ public class InventoryController {
     public Result<IPage<InventoryVO>> getPage(InventoryQuery query) {
         log.info("[接口] 分页查询库存被调用: pageNum={}, pageSize={}, warehouseId={}, productId={}, keyWord={}",
                 query.getPage(), query.getSize(), query.getWarehouseId(),
-                query.getProductId(), query.getKeyWord());
+                query.getProductId(), query.getKeyword());
         return Result.success(inventoryService.getInventoryPage(query));
     }
 
@@ -92,5 +92,17 @@ public class InventoryController {
         log.info("[接口] 调整库存：\n{}", JsonLogUtil.toPrettyJson(dto));
         inventoryService.adjustInventory(dto);
         return Result.success();
+    }
+
+    /**
+     * 低库存预警列表（首页看板用）
+     * 返回库存数量 <= 10 的商品，按库存数量升序排列
+     */
+    @GetMapping("/low-stock")
+    @Operation(summary = "低库存预警", description = "返回库存不足的商品列表，供首页看板展示")
+    public Result<List<InventoryVO>> getLowStock(
+            @RequestParam(defaultValue = "5") Integer limit) {
+        log.info("[接口] 低库存预警查询: limit={}", limit);
+        return Result.success(inventoryService.getLowStockList(limit));
     }
 }

@@ -21,9 +21,10 @@ public class LoginDTO {
     private String username;
 
     /**
-     * 密码
+     * 密码（前端 RSA 加密后提交，密文长度约 344 字符）
+     * 未加密时原始密码 6-50 字符
      */
     @NotBlank(message = AuthMessageConstant.PASSWORD_EMPTY)
-    @Size(min = 6, max = 50, message = "密码长度6-50个字符")
+    @Size(min = 6, max = 512, message = "密码长度6-512个字符")
     private String password;
 }

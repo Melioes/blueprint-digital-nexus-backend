@@ -41,7 +41,7 @@ public class DashboardController {
      */
     @GetMapping
     @Operation(summary = "获取看板数据", description = "返回5个卡片数据（含同比）+ 最近出入库单")
-    @Cacheable(value = "WMS:DASHBOARD", key = "'all'")
+    @Cacheable(value = "WMS:DASHBOARD", key = "'all'", unless = "#result == null")
     public Result<DashboardVO> getDashboard() {
         log.info("[接口] 获取看板数据");
         return Result.success(dashboardService.getDashboard());

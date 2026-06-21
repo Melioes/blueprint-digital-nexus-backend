@@ -247,6 +247,9 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
             inventory.setVersion(InventoryConstant.DEFAULT_VERSION);
             this.save(inventory);
 
+            // 记录库存变动日志
+            saveStockLog(dto, newStock);
+
             log.info("[库存调整] 新增库存成功: inventoryId={}, warehouseId={}, productId={}, totalStock={}",
                     inventory.getInventoryId(), dto.getWarehouseId(), dto.getProductId(), newStock);
         }
@@ -448,8 +451,8 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
         LambdaQueryWrapper<Inventory> wrapper = new LambdaQueryWrapper<>();
 
         // 场景1：有模糊搜索关键字
-        if (StringUtils.hasText(query.getKeyWord())) {
-            String keyWord = query.getKeyWord();
+        if (StringUtils.hasText(query.getKeyword())) {
+            String keyWord = query.getKeyword();
             log.info("[构建条件] 触发关键字搜索: keyWord='{}'", keyWord);
 
             // 先模糊搜索商品表（按名称或 SKU）
@@ -524,5 +527,27 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
         log.setOrderNo(dto.getOrderNo());
 
         stockLogService.save(log);
+    }
+
+    /**
+     * 低库存预警列表（首页看板用）
+     *
+     * 查询 totalStock <= 10 的库存记录，按库存数量升序
+     * 复用 convertToVOList 批量转换，避免 N+1
+     */
+    @Override
+    public List<InventoryVO> getLowStockList(Integer limit) {
+        if (limit == null || limit <= 0) {
+            limit = 5;
+        }
+
+        List<Inventory> list = this.lambdaQuery()
+                .le(Inventory::getTotalStock, 10)
+                .gt(Inventory::getTotalStock, 0)
+                .orderByAsc(Inventory::getTotalStock)
+                .last("LIMIT " + limit)
+                .list();
+
+        return convertToVOList(list);
     }
 }

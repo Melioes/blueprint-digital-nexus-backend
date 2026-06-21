@@ -57,7 +57,7 @@ public class PermissionServiceImpl implements PermissionService {
      * 例如：用户51 → WMS:PERMISSION::roles:51
      */
     @Override
-    @Cacheable(value = "WMS:PERMISSION", key = "'roles:' + #userId")
+    @Cacheable(value = "WMS:PERMISSION", key = "'roles:' + #userId", unless = "#result.isEmpty()")
     public List<String> getUserRoles(Long userId) {
         if (userId == null || userId <= 0) {
             return Collections.emptyList();
@@ -93,7 +93,7 @@ public class PermissionServiceImpl implements PermissionService {
      * 例如：用户51 → WMS:PERMISSION::perms:51
      */
     @Override
-    @Cacheable(value = "WMS:PERMISSION", key = "'perms:' + #userId")
+    @Cacheable(value = "WMS:PERMISSION", key = "'perms:' + #userId", unless = "#result.isEmpty()")
     public List<String> getUserPermissions(Long userId) {
         if (userId == null || userId <= 0) {
             return Collections.emptyList();

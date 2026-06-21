@@ -25,7 +25,8 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/admin/**")
                 .excludePathPatterns(
                         "/admin/auth/login",
-                        "/admin/auth/register"
+                        "/admin/auth/register",
+                        "/admin/auth/pubkey"  // RSA 公钥接口，不需要登录
                 );
 
         // 普通用户接口拦截

@@ -21,5 +21,5 @@ public class InventoryQuery extends PageQuery {
     /**
      * 关键词搜索（搜商品名称/SKU）
      */
-    private String keyWord;
+    private String keyword;
 }

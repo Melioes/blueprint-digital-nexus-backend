@@ -52,7 +52,6 @@ public class SysMenuServiceImpl
         log.info("获取完整菜单树");
 
         List<SysMenu> menuList = this.lambdaQuery()
-                .eq(SysMenu::getStatus, 1)
                 .orderByAsc(SysMenu::getSort)
                 .list();
 
@@ -149,13 +148,12 @@ public class SysMenuServiceImpl
             throw new BusinessException(RoleConstant.MENU_HAS_CHILDREN);
         }
 
-        // 删除菜单
+        // 删除菜单（软删除）
         this.removeById(menuId);
 
-        // 删除角色-菜单绑定
-        sysRoleMenuService.remove(
-                new LambdaQueryWrapper<SysRoleMenu>()
-                        .eq(SysRoleMenu::getMenuId, menuId));
+        // 不删除角色-菜单绑定（sys_role_menu 保留）
+        // 菜单软删除后 getUserMenuTree 会通过 is_deleted=0 过滤掉
+        // 菜单恢复后绑定自动生效，无需手动重新分配
 
         log.info("删除菜单成功 menuId={}", menuId);
     }

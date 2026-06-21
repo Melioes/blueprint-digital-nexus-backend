@@ -35,9 +35,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -160,7 +162,30 @@ public class SysUserServiceImpl
         log.info("user total = {}", pageResult.getTotal());
 
         // 4. VO 转换（统一 converter）
-        return pageResult.convert(userConvert::toVO);
+        IPage<EmployeeVO> voPage = pageResult.convert(userConvert::toVO);
+
+        // 5. 批量查询当前页所有用户的角色ID
+        List<Long> userIds = voPage.getRecords().stream()
+                .map(EmployeeVO::getUserId)
+                .collect(Collectors.toList());
+
+        if (!userIds.isEmpty()) {
+            List<SysUserRole> userRoles = userRoleMapper.selectList(
+                    new LambdaQueryWrapper<SysUserRole>()
+                            .in(SysUserRole::getUserId, userIds));
+
+            // userId → roleIds 映射
+            Map<Long, List<Long>> roleMap = userRoles.stream()
+                    .collect(Collectors.groupingBy(
+                            SysUserRole::getUserId,
+                            Collectors.mapping(SysUserRole::getRoleId, Collectors.toList())));
+
+            // 填充到 VO
+            voPage.getRecords().forEach(vo ->
+                    vo.setRoleIds(roleMap.getOrDefault(vo.getUserId(), Collections.emptyList())));
+        }
+
+        return voPage;
     }
 
     /**

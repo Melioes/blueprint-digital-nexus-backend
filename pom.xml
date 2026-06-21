@@ -121,7 +121,7 @@
         <dependency>
             <groupId>com.aliyun.oss</groupId>
             <artifactId>aliyun-sdk-oss</artifactId>
-            <version>3.17.4</version>
+            <version>3.17.0</version>
         </dependency>
 
         <dependency>
@@ -172,7 +172,7 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.melioes.blueprintdigitalnexus.BlueprintDigitalNexusApplication</mainClass>
-                    <skip>true</skip>
+                    <skip>false</skip>
                 </configuration>
                 <executions>
                     <execution>

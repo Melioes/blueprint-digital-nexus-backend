@@ -60,8 +60,16 @@ public interface InventoryService extends IService<Inventory> {
 
     /**
      * 新增库存
-     * 
+     *
      * @param dto 新增库存参数
      */
     void addInventory(InventoryDTO dto);
+
+    /**
+     * 低库存预警列表（首页看板用）
+     *
+     * @param limit 返回条数
+     * @return 库存不足的商品列表，按库存数量升序
+     */
+    List<InventoryVO> getLowStockList(Integer limit);
 }

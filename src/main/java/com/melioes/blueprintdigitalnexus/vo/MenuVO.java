@@ -22,6 +22,7 @@ public class MenuVO {
     private String permission;
     private String icon;
     private Integer sort;
+    private Integer status;
 
     /**
      * 子菜单（核心）

@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
+
 /**
  * 登录返回 / 当前用户信息 / JWT解析后返回
  */
@@ -24,4 +26,6 @@ public class EmployeeVO {
     private Integer status;
 
     private LocalDateTime createTime;
+
+    private List<Long> roleIds;
 }
